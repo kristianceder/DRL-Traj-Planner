@@ -36,7 +36,7 @@ def run():
     # Load a pre-trained model
     load_checkpoint = True
     # Select the path where the model should be stored
-    path = f'./example/path/to/storage/folder/variant-{index}'
+    path = f'./Model/testing/variant-{index}'
     # path = './Model/td3/image'
     # path = './Model/td3/ray'
     # path = './Model/ddpg/image'
@@ -102,7 +102,7 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 10e4
+    tot_timesteps = 10e5
     n_cpu = 20
     time_step = 0.1
     
@@ -153,7 +153,7 @@ def run():
                     vec_env, learning_rate=0.0001, buffer_size=int(1e6), 
                     learning_starts=10_000, gamma=0.98,
                     gradient_steps=-1,
-                    #action_noise = action_noise,
+                    action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
                     verbose=1,
                     device=variant['device'],

@@ -54,7 +54,7 @@ def robot(ax: Axes, robot: MobileRobot) -> None:
 
 def sectors(ax: Axes, sectors: npt.NDArray, *args, angle: Union[float, None] = None, position: Union[npt.NDArray, None] = None, robot: Union[MobileRobot, None] = None, color='y', alpha: float = 0.5, label: str = None, **kwargs) -> None:
     if robot is not None:
-        print(robot)
+        # print(robot)
         angle = robot.angle
         position = robot.position
 
