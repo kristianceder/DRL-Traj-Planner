@@ -16,23 +16,42 @@ import random
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3 import DDPG, TD3
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
 from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval, generate_map_easy, generate_map_dynamic_2
+from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval, generate_map_easy, generate_simple_map_static
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
-
+from typing import Callable
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
 def generate_map() -> MapDescription:
     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc()])()
 
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
+
 def run():
     # Selects which predefined agent model to use
-    index = 2#int(sys.argv[1])
+    index = 1#int(sys.argv[1])
     # Load a pre-trained model
     load_checkpoint = True
     # Select the path where the model should be stored
@@ -61,7 +80,7 @@ def run():
             'algorithm' : "DDPG",
             'env_name': 'TrajectoryPlannerEnvironmentRaysReward1-v0',
             'net_arch': [16, 16],
-            'per': False,
+            'per': True,
             'device': 'cpu',
         },
         {
@@ -108,14 +127,14 @@ def run():
     
     
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_dynamic_2, time_step = time_step)
-    vec_env = make_vec_env(variant['env_name'], n_envs=1, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_dynamic_2})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_dynamic_2})
+    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_static, time_step = time_step)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]
-    action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
-
+    # action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions),sigma=0.1 * np.ones(n_actions))
     if variant["algorithm"] == "DDPG" and not variant["per"]:
         Algorithm = DDPG
     elif variant["algorithm"] == "DDPG" and variant["per"]:
@@ -125,14 +144,22 @@ def run():
     elif variant["algorithm"] == "TD3" and variant["per"]:
         Algorithm = PerTD3
 
+    # best_test = EvalCallback(vec_env_eval,
+    #                              best_model_save_path=path + '/best',
+    #                              log_path=path + '/best',
+    #                              eval_freq=max((tot_timesteps / 10) // n_cpu, 1),
+    #                              n_eval_episodes=n_cpu)
+
+    # best_test = BaseCallback()
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
-                                 eval_freq=max((tot_timesteps / 10) // n_cpu, 1),
+                                #  callback_on_new_best=best_test,
+                                 eval_freq=max((tot_timesteps / 100) // n_cpu, 1),
                                  n_eval_episodes=n_cpu)
 
     if load_checkpoint:
-        model = Algorithm.load(f"{path}/best_model", env=env_eval)
+        # model = Algorithm.load(f"{path}/best_model", env=env_eval)
         plot_training_results(path)
 
         with no_grad():
@@ -150,10 +177,13 @@ def run():
     
     else:
         model = Algorithm("MultiInputPolicy",
-                    vec_env, learning_rate=0.0001, buffer_size=int(1e6), 
-                    learning_starts=10_000, gamma=0.98,
+                    vec_env, 
+                    # learning_rate=linear_schedule(0.0001),
+                    learning_rate=0.0001, 
+                    buffer_size=int(1e6), 
+                    learning_starts=100_000, gamma=0.98,
                     gradient_steps=-1,
-                    action_noise = action_noise,
+                    # action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
                     verbose=1,
                     device=variant['device'],
@@ -161,6 +191,9 @@ def run():
 
         # Train the model    
         model.learn(total_timesteps=tot_timesteps, log_interval=4, progress_bar=True, callback=eval_callback)
+
+
+        ########################## OBS ändrat rad 502 i EvalCallbacks
 
         # Save the model
         model.save(f"{path}/final_model")
