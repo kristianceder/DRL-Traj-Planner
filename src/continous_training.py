@@ -50,16 +50,21 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
     return func
 
 def run():
+    
     # Selects which predefined agent model to use
-    index = 1#int(sys.argv[1])
+    # index = int(sys.argv[1])      #training on cluster
+    index = 0                       #training local
+    run_vers = 1
     # Load a pre-trained model
     load_checkpoint = True
+
     # Select the path where the model should be stored
-    path = f'./Model/testing/variant-{index}'
+    path = f'./Model/testing/variant-{index}' + f'/run{run_vers}'
     # path = './Model/td3/image'
     # path = './Model/td3/ray'
     # path = './Model/ddpg/image'
     # path = './Model/ddpg/ray'
+    
     # Parameters for different example agent models 
     variant = [
         {
@@ -121,20 +126,21 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 10e5
+    tot_timesteps = 10e4
     n_cpu = 20
     time_step = 0.1
     
     
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_static, time_step = time_step)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map, time_step = time_step)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]
-    # action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
-    action_noise = NormalActionNoise(mean=np.zeros(n_actions),sigma=0.1 * np.ones(n_actions))
+    action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    # action_noise = NormalActionNoise(mean=np.zeros(n_actions),sigma=0.1 * np.ones(n_actions))
+
     if variant["algorithm"] == "DDPG" and not variant["per"]:
         Algorithm = DDPG
     elif variant["algorithm"] == "DDPG" and variant["per"]:
@@ -144,22 +150,15 @@ def run():
     elif variant["algorithm"] == "TD3" and variant["per"]:
         Algorithm = PerTD3
 
-    # best_test = EvalCallback(vec_env_eval,
-    #                              best_model_save_path=path + '/best',
-    #                              log_path=path + '/best',
-    #                              eval_freq=max((tot_timesteps / 10) // n_cpu, 1),
-    #                              n_eval_episodes=n_cpu)
-
-    # best_test = BaseCallback()
+    
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
-                                #  callback_on_new_best=best_test,
                                  eval_freq=max((tot_timesteps / 100) // n_cpu, 1),
                                  n_eval_episodes=n_cpu)
 
     if load_checkpoint:
-        # model = Algorithm.load(f"{path}/best_model", env=env_eval)
+        model = Algorithm.load(f"{path}/best_model", env=env_eval)
         plot_training_results(path)
 
         with no_grad():
@@ -182,8 +181,10 @@ def run():
                     learning_rate=0.0001, 
                     buffer_size=int(1e6), 
                     learning_starts=100_000, gamma=0.98,
+                    # tau=0.1, # detta ska jag titta på imorgon
+                    # train_freq=12, # detta ska jag titta på imorgon
                     gradient_steps=-1,
-                    # action_noise = action_noise,
+                    action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
                     verbose=1,
                     device=variant['device'],
@@ -192,8 +193,6 @@ def run():
         # Train the model    
         model.learn(total_timesteps=tot_timesteps, log_interval=4, progress_bar=True, callback=eval_callback)
 
-
-        ########################## OBS ändrat rad 502 i EvalCallbacks
 
         # Save the model
         model.save(f"{path}/final_model")

@@ -16,7 +16,7 @@ register(
     max_episode_steps=300,
 )
 
-max_episode_steps = 300
+max_episode_steps = 1000
 register(
     id='TrajectoryPlannerEnvironmentImgsReward1-v0',
     entry_point='pkg_ddpg_td3.environment.variants.imgs_reward1:TrajectoryPlannerEnvironmentImgsReward1',

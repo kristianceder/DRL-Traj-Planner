@@ -1,19 +1,6 @@
-# DQN-Boosted MPC for Collision-Free Navigation of Mobile Robots
+# DDPG-Boosted MPC for Collision-Free Navigation of Multiple Mobile Robots
 *Collision-Free Trajectory Planning of Mobile Robots by Integrating
 Deep Reinforcement Learning and Model Predictive Control*
-
-## Publication
-The paper is available: [Not Yet] (Accepted by IEEE CASE2023) \
-Bibtex citation:
-```
-@inproceedings{ze_2023_rlboost,  
-    author={Z. Zhang, Y. Cai, K. Ceder, A. Enliden, O. Eriksson, S. Kylander, R. Sridhara, and K. Åkesson},  
-    booktitle={CASE},   
-    title={Collision-Free Trajectory Planning of Mobile Robots by Integrating Deep Reinforcement Learning and Model Predictive Control},
-    year={2023},
-    publisher={IEEE}
-}
-```
 
 ![Example](doc/cover.png "Example")
 
@@ -45,7 +32,7 @@ Go to "test_block_rl.py", change **TO_TRAIN** and **TO_SAVE** to true and run.
 ## Use Case
 Run *main.py* for the simulation in Python. Several cases are available by changing ```scene_option``` in *main.py*.
 
-
+## 
 
 
 

@@ -328,9 +328,9 @@ if __name__ == '__main__':
 
     time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=False, scene_option=scene_option, save_num=1)
     time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=2)
-    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=3)
+    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, scene_option=scene_option, save_num=3)
     time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=4)
-    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=5)
+    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, scene_option=scene_option, save_num=5)
 
     print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")
 
