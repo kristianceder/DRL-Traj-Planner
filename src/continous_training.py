@@ -54,7 +54,7 @@ def run():
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])      #training on cluster
     index = 0                       #training local
-    run_vers = 1
+    run_vers = 2
     # Load a pre-trained model
     load_checkpoint = True
 
