@@ -1,5 +1,6 @@
 from math import cos, sin, pi
 import numpy as np
+import random
 from shapely.geometry import Polygon, JOIN_STYLE
 
 from . import MobileRobot
@@ -218,8 +219,9 @@ class Obstacle:
         between convex and non-convex with probability 0.5. If set to false: only convex."""
         if random:
             if np.random.choice([True, False]):
-                u_shape = np.array([[-1.4, -0.6], [-1.4, 0.6], [-0.6, 0.6],[-0.6, 0],[0.6, 0], [0.6, 0.6], [1.4, 0.6], [1.4, -0.6],[0.6, -0.6],[0.6, -0.8],[-0.6, -0.8],[-0.6, -0.6]])
-                l_shape = np.array([[-1, -0.4], [-1, 0.8], [-0.2, 0.8],[-0.2, 0.4],[1, 0.4], [1, -0.4]])
+                r = 2
+                u_shape = np.array([[-r, -r], [-r, r], [r, r],[r, -r],[r/2, -r], [r/2, r/2], [-r/2, r/2], [-r/2, -r]])
+                l_shape = np.array([[0, 0], [0, r], [r/3, r],[r/3, r/3],[r, r/3], [r, 0]])
                 scaling_factor = 1
                 nodes = np.random.choice(np.array([u_shape, l_shape], dtype=object))*scaling_factor
                 offset = 0.5*pi/freq if freq > 0 else 0
@@ -237,18 +239,34 @@ class Obstacle:
             for i in range(corners):
                 angle = 2 * pi * i / corners
                 nodes[i, :] = (rx * cos(angle), -ry * sin(angle))
-            offset = 0.5*pi/freq if freq > 0 else 0
+            offset = np.random.uniform(0,2)*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
-    
+
     @staticmethod
-    def create_non_convex_u_shape(p1: ArrayLike, p2: ArrayLike, freq: float, rx: float, ry: float, angle: float) -> 'Obstacle':
+    def create_non_convex_u_shape(p1: ArrayLike, p2: ArrayLike, freq: float, angle: float) -> 'Obstacle':
         """Creates a dynamic obstacle as a non-convex object."""
-        u_shape = np.array([[-1.4, -0.6], [-1.4, 0.6], [-0.6, 0.6],[-0.6, 0],[0.6, 0], [0.6, 0.6], [1.4, 0.6], [1.4, -0.6],[0.6, -0.6],[0.6, -0.8],[-0.6, -0.8],[-0.6, -0.6]])
-        scaling_factor = 1
+        r = 1.5
+        left = r + random.uniform(-1,1)/2
+        right = r + random.uniform(-1,1)/2
+        thickness = random.uniform(r/2,r/1.4)
+        u_shape = np.array([[-r, -right], [-r, r], [r, r],[r, -left],[thickness, -left], [thickness, thickness], [-thickness, thickness], [-thickness, -right]])
+        scaling_factor = 1 + random.uniform(0,1)
         nodes = u_shape*scaling_factor
         offset = 0.5*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
 
+    @staticmethod
+    def create_non_convex_l_shape(p1: ArrayLike, p2: ArrayLike, freq: float, angle: float) -> 'Obstacle':
+        """Creates a dynamic obstacle as a non-convex object."""
+        r = 1.5
+        left = r + random.uniform(0,1)
+        right = r + random.uniform(0,1)
+        thickness = random.uniform(r/3,r/6)
+        l_shape = np.array([[0, 0], [0, left], [thickness, left],[thickness, thickness],[right, thickness], [right, 0]])
+        scaling_factor = 1 + random.uniform(0,1)
+        nodes = l_shape*scaling_factor
+        offset = 0.5*pi/freq if freq > 0 else 0
+        return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
 
 
 class Boundary:

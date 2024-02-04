@@ -475,7 +475,7 @@ def generate_map_eval() -> MapDescription:
     pmaxx = maxx + wall_padding
     pmaxy = maxy + wall_padding
 
-    boundary = Boundary([(pminx-20, pminy), (pmaxx+20, pminy), (20+pmaxx, pmaxy), (pminx-20, pmaxy)])
+    boundary = Boundary([(pminx-20, pminy), (pmaxx+25, pminy), (25+pmaxx, pmaxy), (pminx-20, pmaxy)])
 
     init_state = np.array([pminx-15, 3, -pi, 0, 0])
     robot = MobileRobot(init_state)
@@ -487,11 +487,11 @@ def generate_map_eval() -> MapDescription:
     obstacles = []
 
     obstacles.append(Obstacle.create_mpc_static([(-14, -5), (-8, -5), (-8, 7), (-14, 7)]))
-    obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.5, 2, 1, 0, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 2, 1, 0, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.5, 0.7, 0.7, pi/2, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.8, 0.7, 1, pi/4, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.4, 0.7, 1, pi/4, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.3, 1, 1, pi/2, random = False))
-    obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, 1, 1, pi/5))
+    obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, pi+pi/8))
     obstacles.append(Obstacle.create_mpc_static([(42, -14), (50, -14), (50, 5), (42, 5)]))
 
     if pminx < pmaxx:
@@ -628,42 +628,3 @@ def generate_map_eval_rand() -> MapDescription:
                 break
 
     return robot, boundary, obstacles, goal
-
-def generate_map_easy() -> MapDescription:
-    """
-    Generates a randomized map with many dynamic obstalces
-    """
-
-    atr = MobileRobot((5, random.uniform(5, 15)), 0, 0, 0)
-    boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
-    obstacles = []
-
-    goal = Goal((15, random.uniform(5, 15)))
-
-    return atr, boundary, obstacles, goal
-
-
-def generate_simple_map_static() -> MapDescription:
-    """
-    Generates a randomized map with many dynamic obstalces
-    """
-
-    init_state = np.array([5 + random.uniform(-1,1), random.uniform(5,15), random.uniform(-0.075*pi, 0.075 * pi), 0, 0])
-    robot = MobileRobot(init_state)
-    boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
-    obstacles = []
-    x_top = random.uniform(-1,1)
-    x_bot = random.uniform(-1,1)
-    y_top = random.uniform(-3,3)
-    y_bot = random.uniform(-3,3)
-    obstacles.append(Obstacle.create_mpc_static([(8 + x_bot, 15 + y_top), 
-                                                 (8 + x_bot, 5 + y_bot), 
-                                                 (12 + x_top, 5 + y_bot),
-                                                 (12 + x_top, 15 + y_top)]))
-    goal = Goal((15 + random.uniform(-1,1), random.uniform(5,15)))
-
-    return robot, boundary, obstacles, goal
-
-
-
-
