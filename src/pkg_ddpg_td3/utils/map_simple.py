@@ -67,17 +67,17 @@ def generate_simple_map_static1() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_static([(x_bot, y_top), 
                                                  (x_bot, y_bot), 
                                                  (x_top, y_bot),
-                                                 (x_top, y_top)],
-                                                 np.random.choice([True,False])))
+                                                 (x_top, y_top)]))
     goal = Goal((15 + random.uniform(-1,1), random.uniform(5,15)))
-
+    if random.random() < 0.2:
+        obstacles[0].visible_on_reference_path=False
     return robot, boundary, obstacles, goal
 
 def generate_simple_map_static2() -> MapDescription:
     """
     Generates a randomized map with one static obstacle
     """
-
+    raise NotImplementedError
     init_state = np.array([3 + random.uniform(-1,1), random.uniform(1,19), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
     boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
@@ -118,6 +118,33 @@ def generate_simple_map_static3() -> MapDescription:
         if random.random() < 0.5:
             o.visible_on_reference_path=False
     return robot, boundary, obstacles, goal
+
+def generate_simple_map_static4() -> MapDescription:
+    """
+    Generates a randomized maze-like map
+    """
+
+    raise NotImplementedError
+
+    init_state = np.array([2 + random.uniform(-1,1), random.uniform(1,29), random.uniform(-pi, pi), 0, 0])
+    robot = MobileRobot(init_state)
+    boundary = Boundary([(0, 0), (30, 0), (30, 30), (0, 30)])
+    obstacles = []
+    
+    r = random.uniform(0.4,1)
+
+    a = random.uniform(1,17)
+    b = random.uniform(1,17)
+    c = random.uniform(1,17)
+
+    d = random.uniform(1,12)
+    e = random.uniform(4.5,12.5)
+
+    obstacles.append(Obstacle.create_mpc_static([   ( 5, 20), 
+                                                    ( 5, a + r), 
+                                                    ( 5 + d, a + r),
+                                                    ( 5 + d, 20)]))
+
 
 
 

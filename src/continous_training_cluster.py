@@ -16,28 +16,58 @@ import random
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3 import DDPG, TD3
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import EvalCallback
-# from src.pkg_ddpg_td3.utils.plotresults import plot_training_results
+from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
+from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
-from pkg_ddpg_td3.utils.map_simple import generate_simple_map_dynamic, generate_simple_map_nonconvex, generate_simple_map_static
+from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_dynamic4
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
-
+from typing import Callable
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
+# from main_pre_continous import generate_map
+
 def generate_map() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(),generate_simple_map_static,generate_simple_map_dynamic,generate_simple_map_nonconvex])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
+
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
 
 def run():
+    
     # Selects which predefined agent model to use
-    index = int(sys.argv[1])
+    # index = int(sys.argv[1])      #training on cluster
+    index = 0                       #training local
+    run_vers = 2
+    # Load a pre-trained model
+    load_checkpoint = True
 
     # Select the path where the model should be stored
-    path = f'/cephyr/users/cederk/Vera/github/DRL-Traj-Planner/Model/training/variant-{index}'
-
+    path = f'./Model/testing/variant-{index}' + f'/run{run_vers}'
+    # path = './Model/td3/image'
+    # path = './Model/td3/ray'
+    # path = './Model/ddpg/image'
+    # path = './Model/ddpg/ray'
+    
     # Parameters for different example agent models 
     variant = [
         {
@@ -99,20 +129,20 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 1e7
-    n_cpu = 32
+    tot_timesteps = 10e4
+    n_cpu = 20
     time_step = 0.1
     
-    # Load a pre-trained model
-    load_checkpoint = 0
+    # scene_option = (1, 3, 1)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map, time_step = time_step)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
-    check_env(env_eval)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_dynamic4, time_step = time_step)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
+    # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    # action_noise = NormalActionNoise(mean=np.zeros(n_actions),sigma=0.1 * np.ones(n_actions))
 
     if variant["algorithm"] == "DDPG" and not variant["per"]:
         Algorithm = DDPG
@@ -123,19 +153,44 @@ def run():
     elif variant["algorithm"] == "TD3" and variant["per"]:
         Algorithm = PerTD3
 
+    
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
                                  eval_freq=max((tot_timesteps / 100) // n_cpu, 1),
-				                n_eval_episodes=n_cpu)
+                                 n_eval_episodes=n_cpu)
 
     if load_checkpoint:
-        model = Algorithm.load(f"{path}/best_model", env=vec_env)
+        model = Algorithm.load(f"{path}/best_model", env=env_eval)
+        # plot_training_results(path)
+
+        with no_grad():
+            while True:
+                obs = env_eval.reset()
+                
+                cum_ret = 0
+                for i in range(0, 1000):
+                    action, _states = model.predict(obs, deterministic=True)
+                    obs, reward, done, info = env_eval.step(action)
+                    cum_ret += reward
+                    if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
+                        # vec_env.render("human")
+                        env_eval.render()
+                        # print(cum_ret)
+                    if done:
+                        print(cum_ret)
+                        break
+    
+    
     else:
         model = Algorithm("MultiInputPolicy",
-                    vec_env, learning_rate=0.0001, buffer_size=int(1e6), 
-                    learning_starts=1_000_000, gamma=0.98,
-		            tau=0.001,
+                    vec_env, 
+                    # learning_rate=linear_schedule(0.0001),
+                    learning_rate=0.0001, 
+                    buffer_size=int(1e6), 
+                    learning_starts=100_000, gamma=0.98,
+                    # tau=0.1, # detta ska jag titta på imorgon
+                    # train_freq=12, # detta ska jag titta på imorgon
                     gradient_steps=-1,
                     action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
@@ -143,11 +198,12 @@ def run():
                     device=variant['device'],
                 )
 
-    # Train the model    
-    model.learn(total_timesteps=tot_timesteps, log_interval=4, progress_bar=True, callback=eval_callback)
+        # Train the model    
+        model.learn(total_timesteps=tot_timesteps, log_interval=4, progress_bar=True, callback=eval_callback)
 
-    # Save the model
-    model.save(f"{path}/final_model")
+
+        # Save the model
+        model.save(f"{path}/final_model")
 
                     
     
