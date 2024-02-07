@@ -29,14 +29,15 @@ from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
 def generate_map() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(),generate_simple_map_static,generate_simple_map_dynamic,generate_simple_map_nonconvex])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
 
 def run():
     # Selects which predefined agent model to use
     index = int(sys.argv[1])
+    run_index = int(sys.argv[2])
 
     # Select the path where the model should be stored
-    path = f'/cephyr/users/cederk/Vera/github/DRL-Traj-Planner/Model/training/variant-{index}'
+    path = f'/cephyr/users/cederk/Vera/github/DRL-Traj-Planner/Model/training/variant-{index}/run{run_index}'
 
     # Parameters for different example agent models 
     variant = [
@@ -135,7 +136,7 @@ def run():
         model = Algorithm("MultiInputPolicy",
                     vec_env, learning_rate=0.0001, buffer_size=int(1e6), 
                     learning_starts=1_000_000, gamma=0.98,
-		            tau=0.001,
+		            tau=0.01,
                     gradient_steps=-1,
                     action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
