@@ -237,8 +237,8 @@ class Obstacle:
         else:
             nodes = np.zeros((corners, 2))
             for i in range(corners):
-                angle = 2 * pi * i / corners
-                nodes[i, :] = (rx * cos(angle), -ry * sin(angle))
+                angle2 = 2 * pi * i / corners
+                nodes[i, :] = (rx * cos(angle2), -ry * sin(angle2))
             offset = np.random.uniform(0,2)*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
 

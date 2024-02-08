@@ -22,6 +22,7 @@ from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
 from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_dynamic4
+from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from typing import Callable
@@ -62,7 +63,7 @@ def run():
     load_checkpoint = True
 
     # Select the path where the model should be stored
-    path = f'./Model/testing/variant-{index}' + f'/run{run_vers}'
+    path = f'./Model/training/variant-{index}' + f'/run{run_vers}'
     # path = './Model/td3/image'
     # path = './Model/td3/ray'
     # path = './Model/ddpg/image'
@@ -135,7 +136,7 @@ def run():
     
     # scene_option = (1, 3, 1)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_dynamic4, time_step = time_step)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -173,7 +174,7 @@ def run():
                     action, _states = model.predict(obs, deterministic=True)
                     obs, reward, done, info = env_eval.step(action)
                     cum_ret += reward
-                    if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
+                    if i % 5 == 0: # Only render every third frame for performance (matplotlib is slow)
                         # vec_env.render("human")
                         env_eval.render()
                         # print(cum_ret)

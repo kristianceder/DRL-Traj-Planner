@@ -2,10 +2,11 @@ import re
 import matplotlib.pyplot as plt
 
 # Step 1: Read the text document
-runs = [1,2]
+runs = [1,2,3]
+# runs = [3]
 numbers = {}
 for run in runs:
-    path = f'Model/testing/variant-0/run{run}/'
+    path = f'Model/training/variant-0/run{run}/'
     filename = f'slurm-run{run}.out'  # Change this to your document's filename
     specific_phrase = 'ep_rew_mean'  # Change this to the phrase you're looking for
     
