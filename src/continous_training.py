@@ -135,9 +135,14 @@ def run():
         model = Algorithm.load(f"{path}/best_model", env=vec_env)
     else:
         model = Algorithm("MultiInputPolicy",
-                    vec_env, learning_rate=1e-4, buffer_size=int(2e6), 
-                    learning_starts=int(1e6), gamma=0.98,
-		            tau=0.01,
+                    vec_env, 
+                    learning_rate=1e-4, 
+                    buffer_size=int(2e6), 
+                    learning_starts=int(1e6),
+                    batch_size=int(32), 
+		            tau=float(1),
+                    gamma=float(0.98),
+                    train_freq=12,
                     gradient_steps=-1,
                     action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},

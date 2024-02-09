@@ -3,7 +3,7 @@
 #SBATCH -t 2-12:00:00                       # how long time it will take to run
 #SBATCH -n 32                               # Number of cores
 #SBATCH --gpus-per-node=T4:1                # choosing no. GPUs and their type
-#SBATCH -J drl-var0-run5                    # the jobname
+#SBATCH -J drl-var0-run6                    # the jobname
 
 module purge
 
@@ -12,8 +12,8 @@ REPO_PATH=~/github/$REPO_NAME
 CONTAINER=src/pkg_ddpg_td3/training/container.sif
 TRAINING_SCRIPT=src/continous_training.py
 MODEL=0
-RUN=5
+RUN=6
 
 cp -r $REPO_PATH $TMPDIR
 ( cd $TMPDIR/$REPO_NAME ; apptainer exec ./$CONTAINER python $TRAINING_SCRIPT $MODEL $RUN )
-cp $REPO_PATH/src/pkg_ddpg_td3/training/*.out $REPO_PATH/Model/training/variant-$MODEL/run$RUN/
+# cp $REPO_PATH/src/pkg_ddpg_td3/training/*.out $REPO_PATH/Model/training/variant-$MODEL/run$RUN/
