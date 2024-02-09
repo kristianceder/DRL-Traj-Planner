@@ -181,9 +181,9 @@ def generate_map_dynamic() -> MapDescription:
             y2 = y + random.uniform(-5, 5)
             rx = random.uniform(0.2, 1.2)
             ry = random.uniform(0.2, 1.2)
-            freq = random.uniform(0.3, 0.7)
+            freq = random.uniform(0.1, 0.5)
             angle = random.uniform(0, 2 * math.pi)
-
+            # angle = math.atan2(y2-y,x2-y)
             obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle))
     goal = Goal((35, random.uniform(5, 15)))
 
@@ -477,7 +477,7 @@ def generate_map_eval() -> MapDescription:
 
     boundary = Boundary([(pminx-20, pminy), (pmaxx+25, pminy), (25+pmaxx, pmaxy), (pminx-20, pmaxy)])
 
-    init_state = np.array([pminx-15, 3, -pi, 0, 0])
+    init_state = np.array([pminx-15, 3, -pi/3, 0, 0])
     robot = MobileRobot(init_state)
     goal = Goal((18.5+pmaxx, -10))
 
@@ -487,10 +487,13 @@ def generate_map_eval() -> MapDescription:
     obstacles = []
 
     obstacles.append(Obstacle.create_mpc_static([(-14, -5), (-8, -5), (-8, 7), (-14, 7)]))
-    obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 2, 1, 0, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.5, 0.7, 0.7, pi/2, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.4, 0.7, 1, pi/4, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.3, 1, 1, pi/2, random = False))
+    
+    
+    obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.4, 0.7, 0.5, pi/4, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.4, 0.7, 1, 0, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 1, 0.5, -pi/4, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.2, 1, 1, pi/3, random = False))
+    
     obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, pi+pi/8))
     obstacles.append(Obstacle.create_mpc_static([(42, -14), (50, -14), (50, 5), (42, 5)]))
 

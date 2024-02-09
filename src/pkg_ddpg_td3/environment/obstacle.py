@@ -220,8 +220,10 @@ class Obstacle:
         if random:
             if np.random.choice([True, False]):
                 r = 2
-                u_shape = np.array([[-r, -r], [-r, r], [r, r],[r, -r],[r/2, -r], [r/2, r/2], [-r/2, r/2], [-r/2, -r]])
-                l_shape = np.array([[0, 0], [0, r], [r/3, r],[r/3, r/3],[r, r/3], [r, 0]])
+                u_shape = np.array([[-1.4, -0.6], [-1.4, 0.6], [-0.6, 0.6],[-0.6, 0],[0.6, 0], [0.6, 0.6], [1.4, 0.6], [1.4, -0.6],[0.6, -0.6],[0.6, -0.8],[-0.6, -0.8],[-0.6, -0.6]])
+                l_shape = np.array([[-1, -0.4], [-1, 0.8], [-0.2, 0.8],[-0.2, 0.4],[1, 0.4], [1, -0.4]])
+                # u_shape = np.array([[-r, -r], [-r, r], [r, r],[r, -r],[r/2, -r], [r/2, r/2], [-r/2, r/2], [-r/2, -r]])
+                # l_shape = np.array([[0, 0], [0, r], [r/3, r],[r/3, r/3],[r, r/3], [r, 0]])
                 scaling_factor = 1
                 nodes = np.random.choice(np.array([u_shape, l_shape], dtype=object))*scaling_factor
                 offset = 0.5*pi/freq if freq > 0 else 0
@@ -230,8 +232,8 @@ class Obstacle:
             else:
                 nodes = np.zeros((corners, 2))
                 for i in range(corners):
-                    angle = 2 * pi * i / corners
-                    nodes[i, :] = (rx * cos(angle), -ry * sin(angle))
+                    angle2 = 2 * pi * i / corners
+                    nodes[i, :] = (rx * cos(angle2), -ry * sin(angle2))
                 offset = 0.5*pi/freq if freq > 0 else 0
                 return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
         else:

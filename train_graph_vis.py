@@ -1,8 +1,12 @@
 import re
+import numpy as np
 import matplotlib.pyplot as plt
 
+
+def moving_average(x, w):
+    return np.convolve(x,np.ones(w), 'valid') / w
 # Step 1: Read the text document
-runs = [1,2,3]
+runs = [1,2,3,4]
 # runs = [3]
 numbers = {}
 for run in runs:
@@ -26,8 +30,9 @@ for run in runs:
 # Step 5: Visualize the data
 plt.figure(figsize=(10, 6))
 for run in runs:
-    plt.plot(numbers[run], linestyle='-')
+    plt.plot(moving_average(numbers[run],60), linestyle='-',linewidth=3)
 plt.title('Visualization of Numbers Found')
+plt.legend([f'run{run}' for run in runs])
 plt.xlabel('Occurrence')
 plt.ylabel('Number')
 plt.grid(True)

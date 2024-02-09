@@ -127,8 +127,8 @@ def generate_map_multi_robot3() -> MapDescription:
 
     wall = (nest_size-door_size)/2
 
-    # nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
-    nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
+    nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
+    # nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
     map_size = nest_size*box_resolution
     
     nodes = []

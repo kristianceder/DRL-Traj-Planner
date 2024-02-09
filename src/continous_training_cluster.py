@@ -33,6 +33,7 @@ from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
 def generate_map() -> MapDescription:
     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
+    # return random.choice([generate_map_dynamic])()
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
     """
@@ -136,7 +137,7 @@ def run():
     
     # scene_option = (1, 3, 1)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_eval, time_step = time_step)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -174,7 +175,7 @@ def run():
                     action, _states = model.predict(obs, deterministic=True)
                     obs, reward, done, info = env_eval.step(action)
                     cum_ret += reward
-                    if i % 5 == 0: # Only render every third frame for performance (matplotlib is slow)
+                    if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
                         # vec_env.render("human")
                         env_eval.render()
                         # print(cum_ret)
