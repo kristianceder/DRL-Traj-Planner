@@ -164,10 +164,11 @@ def run():
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=env_eval)
-        # plot_training_results(path)
+        plot_training_results(path)
 
         with no_grad():
-            while True:
+            rew_list = []
+            for j in range(500):
                 obs = env_eval.reset()
                 
                 cum_ret = 0
@@ -178,10 +179,11 @@ def run():
                     if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
                         # vec_env.render("human")
                         env_eval.render()
-                        # print(cum_ret)
                     if done:
                         print(cum_ret)
+                        rew_list.append(cum_ret)
                         break
+            print(f'mean={sum(rew_list)/len(rew_list)}')
     
     
     else:

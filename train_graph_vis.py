@@ -6,13 +6,14 @@ import matplotlib.pyplot as plt
 def moving_average(x, w):
     return np.convolve(x,np.ones(w), 'valid') / w
 # Step 1: Read the text document
-runs = [1,2,3,4]
-# runs = [3]
+# runs = [1,2,4,5,6]
+runs = [5,6]
 numbers = {}
 for run in runs:
     path = f'Model/training/variant-0/run{run}/'
     filename = f'slurm-run{run}.out'  # Change this to your document's filename
     specific_phrase = 'ep_rew_mean'  # Change this to the phrase you're looking for
+    # specific_phrase = 'actor_loss'  # Change this to the phrase you're looking for
     
     numbers[run] = []
     with open(path + filename, 'r') as file:
@@ -30,7 +31,7 @@ for run in runs:
 # Step 5: Visualize the data
 plt.figure(figsize=(10, 6))
 for run in runs:
-    plt.plot(moving_average(numbers[run],60), linestyle='-',linewidth=3)
+    plt.plot(moving_average(numbers[run],1), linestyle='-',linewidth=2)
 plt.title('Visualization of Numbers Found')
 plt.legend([f'run{run}' for run in runs])
 plt.xlabel('Occurrence')
