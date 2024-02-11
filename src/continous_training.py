@@ -22,6 +22,7 @@ from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
 from pkg_ddpg_td3.utils.map_simple import generate_simple_map_dynamic, generate_simple_map_nonconvex, generate_simple_map_static
+from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
@@ -108,9 +109,9 @@ def run():
     # Load a pre-trained model
     load_checkpoint = 0
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map, time_step = time_step)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_multi_robot3})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_multi_robot3_eval})
     check_env(env_eval)
 
     n_actions  = vec_env.action_space.shape[-1]
@@ -140,9 +141,9 @@ def run():
                     buffer_size=int(2e6), 
                     learning_starts=int(1e6),
                     batch_size=int(32), 
-		            tau=float(1),
+		            tau=float(0.01),
                     gamma=float(0.98),
-                    train_freq=12,
+                    train_freq=4,
                     gradient_steps=-1,
                     action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
