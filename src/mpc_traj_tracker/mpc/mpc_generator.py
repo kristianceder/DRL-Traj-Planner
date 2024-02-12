@@ -213,7 +213,7 @@ class MpcModule:
             other_robots_y = c[kt*self.ns+1::self.ns*self.N_hor] # second state
             other_robots = cs.hcat([other_robots_x, other_robots_y]) # states of other robots at time kt (Nother*ns)
             other_robots = cs.transpose(other_robots) # every column is a state of a robot
-            cost += cost_fleet_collision(state_next[:2], other_robots, safe_distance=self.config.vehicle_width, weight=1000)
+            cost += cost_fleet_collision(state_next[:2], other_robots, safe_distance=self.config.vehicle_width*2.5, weight=1000)
 
             ### Static obstacles
             for i in range(self.config.Nstcobs):

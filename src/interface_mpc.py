@@ -1,4 +1,5 @@
 import itertools
+from typing import Callable, List, Tuple, Optional
 
 import numpy as np
 
@@ -8,13 +9,12 @@ from mpc_traj_tracker._path import PathNodeList
 
 from util import utils_geo
 
-from typing import Callable, List, Tuple
-
 
 DEFAULT_MOTION_MODEL = motion_model.unicycle_model
 
+
 class InterfaceMpc:
-    def __init__(self, config, use_tcp=False, verbose=False, motion_model:Callable=None):
+    def __init__(self, config, use_tcp=False, verbose=False, motion_model:Optional[Callable]=None):
         self._traj_gen = TrajectoryGenerator(config, use_tcp, verbose=verbose)
         motion_model = motion_model if motion_model is not None else DEFAULT_MOTION_MODEL
         self._traj_gen.load_robot_dynamics(motion_model=motion_model)
@@ -68,6 +68,7 @@ class InterfaceMpc:
             self.dyn_constraints[i*params_per_dyn_obs:(i+1)*params_per_dyn_obs] = list(itertools.chain(*dyn_obstacle))
     
     def update_other_robot_states(self, other_robot_states):
+        """other_robot_states: A list with length "ns*N_hor*Nother" (E.x. [0,0,0] * (self.N_hor*self.config.Nother))"""
         self.other_robot_states = other_robot_states
 
     def get_local_ref_traj(self, local_ref_traj:np.ndarray=None) -> Tuple[np.ndarray, np.ndarray]:
@@ -80,6 +81,7 @@ class InterfaceMpc:
         return original_ref_traj, local_ref_traj
     
     def get_action(self, current_ref_traj: np.ndarray, mode='work', initial_guess:np.ndarray=None):
+        """If termination condition is met, return None."""
         if self._traj_gen.check_termination_condition(self.state, self._last_action, self.goal):
             return None
         actions, pred_states, cost = self._traj_gen.run_step(self.stc_constraints, self.dyn_constraints, 

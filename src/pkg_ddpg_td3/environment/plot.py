@@ -40,7 +40,7 @@ def obstacles(ax: Axes, obstacles: Iterable[Obstacle], fmt: str = 'r', *args, pa
 def boundary(ax: Axes, b: Boundary, fmt: str = 'k', *args, padded: bool = False, label: str = 'Boundary', **kwargs) -> None:
     polygon(ax, b.get_padded_vertices() if padded else b.vertices, fmt, *args, label=label, **kwargs)
 
-def robot(ax: Axes, robot: MobileRobot) -> None:
+def robot(ax: Axes, robot: MobileRobot, color='red') -> None:
     n = 3
     X = np.zeros((2, n), dtype=float)
     for i, angle in enumerate([0, np.pi * 3 / 4, -np.pi * 3/4]):
@@ -49,8 +49,8 @@ def robot(ax: Axes, robot: MobileRobot) -> None:
     s = np.sin(robot.angle)
     X = 0.9 * robot.cfg.RADIUS * np.array([[c, -s], [s, c]]) @ X
 
-    ax.add_artist(plt.Circle(robot.position, robot.cfg.RADIUS, color="r", alpha=1, zorder=100))
-    ax.add_artist(plt.Polygon((robot.position[:, None] + X).T, color="lightsalmon", zorder=101))
+    ax.add_artist(plt.Circle(robot.position, robot.cfg.RADIUS, color=color, alpha=1, zorder=100))
+    ax.add_artist(plt.Polygon((robot.position[:, None] + X).T, color="#f74d4d", zorder=101))
 
 def sectors(ax: Axes, sectors: npt.NDArray, *args, angle: Union[float, None] = None, position: Union[npt.NDArray, None] = None, robot: Union[MobileRobot, None] = None, color='y', alpha: float = 0.5, label: str = None, **kwargs) -> None:
     if robot is not None:

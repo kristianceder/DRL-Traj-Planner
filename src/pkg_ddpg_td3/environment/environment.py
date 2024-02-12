@@ -1,4 +1,4 @@
-from time import time
+from typing import Union, List, Tuple
 from packaging import version
 
 
@@ -9,17 +9,14 @@ import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from matplotlib.axes import Axes
 
 from shapely.geometry import LineString
 from extremitypathfinder import PolygonEnvironment
 
 from . import plot, MobileRobot, MapGenerator, MapDescription
 from .components.component import Component
-
-from typing import Union, List, Tuple
-from numpy.typing import NDArray
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from .obstacle import Obstacle
 
 
 GYM_0_22_X = version.parse(gym.__version__) >= version.parse("0.22.0")
@@ -53,7 +50,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.render_cnt = 0
 
         for component in self.components:
-            component.env = self
+            component.set_env(self)
 
             assert len(component.internal_obs_min) == len(component.internal_obs_max)
             if len(component.external_obs_space.shape) > 0:
@@ -146,9 +143,17 @@ class TrajectoryPlannerEnvironment(gym.Env):
 
     def get_observation(self) -> dict:
         """Collects observations from all components and returns them"""
+        if len(self.temp_obstacles) > 0:
+            stable_obstacles = self.obstacles.copy()
+            self.obstacles = stable_obstacles + self.temp_obstacles
+
         self.obsv = {'internal': np.hstack([np.asarray(c.internal_obs(), dtype=np.float32) for c in self.components])}
         if self.external_obs_component is not None:
             self.obsv['external'] = self.external_obs_component.external_obs()
+
+        if len(self.temp_obstacles) > 0:
+            self.temp_obstacles = []
+            self.obstacles = stable_obstacles
         return self.obsv
     
     def get_map_description(self) -> MapDescription:
@@ -163,6 +168,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
             if self._update_reference_path():
                 break
         self.update_status(True)
+        self.temp_obstacles = []
 
         self.last_render_at = 0
 
@@ -192,6 +198,10 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.boundary = boundary
         self.obstacles = obstacle_list
 
+    def set_temp_obstacles(self, obstacles: List[Obstacle]) -> None:
+        """Add temporary obstacles to the environment. They are removed after getting the observation."""
+        self.temp_obstacles = obstacles
+
 
     def step_obstacles(self) -> None:
         for obstacle in self.obstacles:
@@ -216,7 +226,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         else:
             return observation, reward, terminated, info
 
-    def render(self, mode:str="human", dqn_ref=None, actual_ref=None, original_ref=None, save=False, save_num:int=1) -> Union[None, NDArray[np.uint8]]:
+    def render(self, mode:str="human", dqn_ref=None, actual_ref=None, original_ref=None, save=False, save_num:int=1):
         external = self.obsv.get("external")
         show_image = False
         if external is not None and len(external.shape) == 3 and external.dtype == np.uint8:
@@ -294,3 +304,42 @@ class TrajectoryPlannerEnvironment(gym.Env):
             data = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
             data = data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
             return data
+        
+    def render_ax(self, ax_main: Axes, ax_profile: Axes, ax_obsv: Axes, plot_map:bool=True, plot_obsv:bool=True,
+                  drl_ref=None, actual_ref=None, original_ref=None, vis_component:bool=True, theme_color:str='blue'):
+        ex_obsv = self.obsv.get("external")
+        img_obsv = False
+        if ex_obsv is not None and len(ex_obsv.shape) == 3 and ex_obsv.dtype == np.uint8:
+            img_obsv = True
+
+        if img_obsv and plot_obsv:
+            assert ex_obsv is not None
+            ax_obsv.imshow(ex_obsv.transpose([1, 2, 0]))
+
+        if plot_map:
+            plot.obstacles(ax_main, self.obstacles)
+            plot.obstacles(ax_main, self.obstacles, padded=True, linestyle="--", label="Padded obstacles")
+            plot.boundary(ax_main, self.boundary)
+        plot.reference_path(ax_main, self.path)
+        plot.robot(ax_main, self.agent, color=theme_color)
+        plot.line(ax_main, self.traversed_positions, c=theme_color, label="Past path")
+
+        if drl_ref is not None:
+            ax_main.plot(np.array(drl_ref)[:, 0], np.array(drl_ref)[:, 1], "s-", c=theme_color, markerfacecolor='none', label="DRL reference")
+        if original_ref is not None:
+            ax_main.plot(np.array(original_ref)[:, 0], np.array(original_ref)[:, 1], "o-", c=theme_color, markerfacecolor='none', label="Original reference")
+        if actual_ref is not None:
+            ax_main.plot(np.array(actual_ref)[:, 0], np.array(actual_ref)[:, 1], "x-", c=theme_color, label="Actual reference")
+        
+        if not img_obsv and not plot_map:
+            ax_main.set_xlim(self.boundary.vertices[:, 0].min(), self.boundary.vertices[:, 0].max())
+            ax_main.set_ylim(self.boundary.vertices[:, 1].min(), self.boundary.vertices[:, 1].max())
+
+        if vis_component:
+            for component in self.components:
+                component.render(ax_main)
+
+        times = np.arange(len(self.speeds))
+        ax_profile.plot(times, self.speeds, '-', c=theme_color, label="Speed [m/s]")
+        ax_profile.plot(times, self.angular_velocities, '.--', c=theme_color, label="Angular velocity [rad/s]")
+        # ax_profile.legend(bbox_to_anchor=(0.5, 1.04), loc="lower center")

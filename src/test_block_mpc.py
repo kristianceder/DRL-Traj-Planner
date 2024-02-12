@@ -20,7 +20,7 @@ from visualizer.mpc_plot import MpcPlotAfter
 CONFIG_FN = 'mpc_longiter.yaml'
 
 INIT_BUILD = True
-PLOT_INLOOP = True
+PLOT_INLOOP = False
 show_animation = False
 save_animation = False
 case_index = 4 # if None, give the hints

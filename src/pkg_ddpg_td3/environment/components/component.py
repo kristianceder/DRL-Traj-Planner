@@ -11,12 +11,14 @@ class Component:
     """
     Base class for all components
     """
-    env: 'TrajectoryPlannerEnvironment'
+    # env: 'TrajectoryPlannerEnvironment'
 
     internal_obs_min: npt.ArrayLike = []
     internal_obs_max: npt.ArrayLike = []
 
     external_obs_space: spaces.Box = spaces.Box(0, 0, shape=())
+    def set_env(self, env: 'TrajectoryPlannerEnvironment') -> None:
+        self.env = env
 
     def internal_obs(self) -> npt.ArrayLike:
         return []
