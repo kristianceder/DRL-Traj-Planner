@@ -127,8 +127,8 @@ def generate_map_multi_robot3() -> MapDescription:
     num_obstacles = box_resolution // 2
     wall = (nest_size-door_size)/2
 
-    # nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
-    nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
+    nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
+    # nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
     map_size = nest_size*box_resolution
     
     nodes = []
@@ -204,188 +204,6 @@ def generate_map_multi_robot3() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (1.5*nest_size, map_size - 1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, 1.5*nest_size), speed, 1, 0.5, 0, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((map_size-1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, map_size-1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
-    return MobileRobot(init_state), Boundary(nodes), obstacles, Goal((goal_position[0],goal_position[1]))
-
-
-def generate_map_multi_robot3_eval() -> MapDescription:
-
-    """
-    Generates a randomized map with one static obstacle
-    """
-    nest_size = 4
-    door_size = 2
-    box_resolution = 8
-
-    wall = (nest_size-door_size)/2
-
-    # nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
-    nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
-    map_size = nest_size*box_resolution
-    
-    nodes = []
-    # positions = []
-    obstacles = []
-    
-    for i in range(map_size//nest_size): #LEFTSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(nest+np.array([0,i*nest_size]).reshape(2,1)).T))
-            # positions.append((nest_size/2,i*nest_size+nest_size/2,random.choice([0,pi])))
-
-    for i in range(map_size//nest_size): #TOPSECTION 1
-        if i < map_size//(2*nest_size) and i > 0:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #MIDDLE UP 1
-        if i < map_size//nest_size - 3 and i > map_size//(2*nest_size) - 1:
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
-    
-    nodes += [(3*nest_size-0.1,map_size-2*nest_size),(3*nest_size-0.1,map_size-3*nest_size+0.1),(2*nest_size,map_size-3*nest_size+0.1)]
-
-    for i in range(map_size//nest_size): #MIDDLE LEFT SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(rot_180@nest+np.array([3*nest_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
-            # positions.append((2.5*nest_size,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
-
-    nodes += [(2*nest_size,3*nest_size-0.1),(3*nest_size-0.1,3*nest_size-0.1),(3*nest_size-0.1,2*nest_size)]
-
-    for i in range(map_size//nest_size): #MIDDLE BOTTOM SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,3*nest_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,2.5*nest_size,random.choice([pi/2,-pi/2])))
-
-    nodes += [(map_size - 3*nest_size + 0.1, 2*nest_size),(map_size - 3*nest_size + 0.1, 3*nest_size - 0.1),(map_size - 2*nest_size, 3*nest_size - 0.1)]
-
-    for i in range(map_size//nest_size): #MIDDLE RIGHT SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(nest+np.array([map_size-3*nest_size,i*nest_size]).reshape(2,1)).T))
-            # positions.append((map_size-2.5*nest_size,i*nest_size+nest_size/2,random.choice([0,pi])))
-
-    nodes += [(map_size-2*nest_size,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-2*nest_size)]
-
-    for i in range(map_size//nest_size): #MIDDLE UP 2
-        if i > 2 and i < map_size//(2*nest_size):
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #TOPSECTION 2
-        if i < map_size//nest_size - 1 and i > map_size//(2*nest_size)-1:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #RIGHTSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(rot_180@nest+np.array([map_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
-            # positions.append((map_size-nest_size/2,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
-
-    for i in range(map_size//nest_size): #BOTTOMSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,0]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,nest_size/2,random.choice([pi/2,-pi/2])))
-
-    # random.shuffle(positions)
-    
-    start_position = (0.5*nest_size, 4.5*nest_size,0)
-    goal_position = (map_size-3.5*nest_size, map_size-2.5*nest_size)
-
-    init_state = np.array([start_position[0], start_position[1], start_position[2], 0, 0])
-    
-    speed = 0.1
-    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (1.5*nest_size, map_size - 1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, 1.5*nest_size), speed, 1, 0.5, 0, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((map_size-1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, map_size-1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
-    return MobileRobot(init_state), Boundary(nodes), obstacles, Goal((goal_position[0],goal_position[1]))
-
-
-def generate_map_multi_robot3_eval() -> MapDescription:
-
-    """
-    Generates a randomized map with one static obstacle
-    """
-    nest_size = 4
-    door_size = 2
-    box_resolution = 8
-
-    wall = (nest_size-door_size)/2
-
-    # nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
-    nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
-    map_size = nest_size*box_resolution
-    
-    nodes = []
-    # positions = []
-    obstacles = []
-    
-    for i in range(map_size//nest_size): #LEFTSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(nest+np.array([0,i*nest_size]).reshape(2,1)).T))
-            # positions.append((nest_size/2,i*nest_size+nest_size/2,random.choice([0,pi])))
-
-    for i in range(map_size//nest_size): #TOPSECTION 1
-        if i < map_size//(2*nest_size) and i > 0:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #MIDDLE UP 1
-        if i < map_size//nest_size - 3 and i > map_size//(2*nest_size) - 1:
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
-    
-    nodes += [(3*nest_size-0.1,map_size-2*nest_size),(3*nest_size-0.1,map_size-3*nest_size+0.1),(2*nest_size,map_size-3*nest_size+0.1)]
-
-    for i in range(map_size//nest_size): #MIDDLE LEFT SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(rot_180@nest+np.array([3*nest_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
-            # positions.append((2.5*nest_size,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
-
-    nodes += [(2*nest_size,3*nest_size-0.1),(3*nest_size-0.1,3*nest_size-0.1),(3*nest_size-0.1,2*nest_size)]
-
-    for i in range(map_size//nest_size): #MIDDLE BOTTOM SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,3*nest_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,2.5*nest_size,random.choice([pi/2,-pi/2])))
-
-    nodes += [(map_size - 3*nest_size + 0.1, 2*nest_size),(map_size - 3*nest_size + 0.1, 3*nest_size - 0.1),(map_size - 2*nest_size, 3*nest_size - 0.1)]
-
-    for i in range(map_size//nest_size): #MIDDLE RIGHT SECTION
-        if i < map_size//nest_size - 3 and i > 2:
-            nodes += list(map(tuple,(nest+np.array([map_size-3*nest_size,i*nest_size]).reshape(2,1)).T))
-            # positions.append((map_size-2.5*nest_size,i*nest_size+nest_size/2,random.choice([0,pi])))
-
-    nodes += [(map_size-2*nest_size,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-2*nest_size)]
-
-    for i in range(map_size//nest_size): #MIDDLE UP 2
-        if i > 2 and i < map_size//(2*nest_size):
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #TOPSECTION 2
-        if i < map_size//nest_size - 1 and i > map_size//(2*nest_size)-1:
-            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
-            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
-
-    for i in range(map_size//nest_size): #RIGHTSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(rot_180@nest+np.array([map_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
-            # positions.append((map_size-nest_size/2,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
-
-    for i in range(map_size//nest_size): #BOTTOMSECTION
-        if i < map_size//nest_size - 1 and i > 0:
-            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,0]).reshape(2,1)).T))
-            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,nest_size/2,random.choice([pi/2,-pi/2])))
-
-    # random.shuffle(positions)
-    
-    start_position = (0.5*nest_size, 4.5*nest_size,0)
-    goal_position = (map_size-3.5*nest_size, map_size-2.5*nest_size)
-
-    init_state = np.array([start_position[0], start_position[1], start_position[2], 0, 0])
-    
-    speed = 0.1
-    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (1.5*nest_size, map_size - 1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, 1.5*nest_size), speed, 1, 0.5, 0, random = False))
-    obstacles.append(Obstacle.create_mpc_dynamic((map_size-1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, map_size-1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
     speed = 0.2
     for i in range(num_obstacles):
         obs_start = positions.pop()
@@ -397,4 +215,95 @@ def generate_map_multi_robot3_eval() -> MapDescription:
             obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0], 0.5*nest_size), (obs_start[0],2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
         elif obs_start[1] == map_size-0.5*nest_size:
             obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0],map_size - 0.5*nest_size), (obs_start[0],map_size - 2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
+    return MobileRobot(init_state), Boundary(nodes), obstacles, Goal((goal_position[0],goal_position[1]))
+
+
+def generate_map_multi_robot3_eval() -> MapDescription:
+
+    """
+    Generates a randomized map with one static obstacle
+    """
+    nest_size = 4
+    door_size = 2
+    box_resolution = 8
+
+    wall = (nest_size-door_size)/2
+
+    # nest = np.array([(nest_size,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size,nest_size - 0.1)]).T
+    nest = np.array([(nest_size,0.1),(nest_size,wall),(nest_size-0.2,wall),(nest_size-0.2,0.1),(0.1,0.1),(0.1,nest_size - 0.1),(nest_size-0.2,nest_size - 0.1),(nest_size-0.2,nest_size - wall),(nest_size,nest_size - wall),(nest_size,nest_size - 0.1)]).T
+    map_size = nest_size*box_resolution
+    
+    nodes = []
+    # positions = []
+    obstacles = []
+    
+    for i in range(map_size//nest_size): #LEFTSECTION
+        if i < map_size//nest_size - 1 and i > 0:
+            nodes += list(map(tuple,(nest+np.array([0,i*nest_size]).reshape(2,1)).T))
+            # positions.append((nest_size/2,i*nest_size+nest_size/2,random.choice([0,pi])))
+
+    for i in range(map_size//nest_size): #TOPSECTION 1
+        if i < map_size//(2*nest_size) and i > 0:
+            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
+            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
+
+    for i in range(map_size//nest_size): #MIDDLE UP 1
+        if i < map_size//nest_size - 3 and i > map_size//(2*nest_size) - 1:
+            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
+            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
+    
+    nodes += [(3*nest_size-0.1,map_size-2*nest_size),(3*nest_size-0.1,map_size-3*nest_size+0.1),(2*nest_size,map_size-3*nest_size+0.1)]
+
+    for i in range(map_size//nest_size): #MIDDLE LEFT SECTION
+        if i < map_size//nest_size - 3 and i > 2:
+            nodes += list(map(tuple,(rot_180@nest+np.array([3*nest_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
+            # positions.append((2.5*nest_size,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
+
+    nodes += [(2*nest_size,3*nest_size-0.1),(3*nest_size-0.1,3*nest_size-0.1),(3*nest_size-0.1,2*nest_size)]
+
+    for i in range(map_size//nest_size): #MIDDLE BOTTOM SECTION
+        if i < map_size//nest_size - 3 and i > 2:
+            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,3*nest_size]).reshape(2,1)).T))
+            # positions.append((i*nest_size+nest_size/2,2.5*nest_size,random.choice([pi/2,-pi/2])))
+
+    nodes += [(map_size - 3*nest_size + 0.1, 2*nest_size),(map_size - 3*nest_size + 0.1, 3*nest_size - 0.1),(map_size - 2*nest_size, 3*nest_size - 0.1)]
+
+    for i in range(map_size//nest_size): #MIDDLE RIGHT SECTION
+        if i < map_size//nest_size - 3 and i > 2:
+            nodes += list(map(tuple,(nest+np.array([map_size-3*nest_size,i*nest_size]).reshape(2,1)).T))
+            # positions.append((map_size-2.5*nest_size,i*nest_size+nest_size/2,random.choice([0,pi])))
+
+    nodes += [(map_size-2*nest_size,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-3*nest_size+0.1),(map_size-3*nest_size+0.1,map_size-2*nest_size)]
+
+    for i in range(map_size//nest_size): #MIDDLE UP 2
+        if i > 2 and i < map_size//(2*nest_size):
+            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,map_size-3*nest_size]).reshape(2,1)).T))
+            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,map_size-2.5*nest_size,random.choice([pi/2,-pi/2])))
+
+    for i in range(map_size//nest_size): #TOPSECTION 2
+        if i < map_size//nest_size - 1 and i > map_size//(2*nest_size)-1:
+            nodes += list(map(tuple,(rot_270@nest+np.array([i*nest_size,map_size]).reshape(2,1)).T))
+            # positions.append((i*nest_size+nest_size/2,map_size - nest_size/2,random.choice([pi/2,-pi/2])))
+
+    for i in range(map_size//nest_size): #RIGHTSECTION
+        if i < map_size//nest_size - 1 and i > 0:
+            nodes += list(map(tuple,(rot_180@nest+np.array([map_size,(map_size//nest_size-i)*nest_size]).reshape(2,1)).T))
+            # positions.append((map_size-nest_size/2,(map_size//nest_size-i-1)*nest_size + nest_size/2,random.choice([0,pi])))
+
+    for i in range(map_size//nest_size): #BOTTOMSECTION
+        if i < map_size//nest_size - 1 and i > 0:
+            nodes += list(map(tuple,(rot_90@nest+np.array([(map_size//nest_size-i)*nest_size,0]).reshape(2,1)).T))
+            # positions.append(((map_size//nest_size-i-1)*nest_size+nest_size/2,nest_size/2,random.choice([pi/2,-pi/2])))
+
+    # random.shuffle(positions)
+    
+    start_position = (0.5*nest_size, 4.5*nest_size,0)
+    goal_position = (map_size-3.5*nest_size, map_size-2.5*nest_size)
+
+    init_state = np.array([start_position[0], start_position[1], start_position[2], 0, 0])
+    
+    speed = 0.1
+    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (1.5*nest_size, map_size - 1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, 1.5*nest_size), speed, 1, 0.5, 0, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((map_size-1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, map_size-1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
     return MobileRobot(init_state), Boundary(nodes), obstacles, Goal((goal_position[0],goal_position[1]))

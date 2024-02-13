@@ -71,7 +71,7 @@ def run():
     
     index = 0
     variant = variant_list[index]
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3_eval, time_step = 0.1)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = 0.1)
     env_eval.reset()
     # env_eval.step(np.array([0,0]))
     while True:
