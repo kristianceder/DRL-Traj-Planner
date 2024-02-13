@@ -20,7 +20,7 @@ from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
 from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
+from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval, generate_map_scene_1, generate_map_scene_2
 from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_dynamic4
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3
 from pkg_ddpg_td3.environment import MapDescription
@@ -29,10 +29,10 @@ from typing import Callable
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
-# from main_pre_continous import generate_map
+from main_pre_continous import generate_map
 
-def generate_map() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
+# def generate_map() -> MapDescription:
+#     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
     # return random.choice([generate_map_dynamic])()
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
@@ -50,6 +50,32 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
         :param progress_remaining:
         :return: current learning rate
         """
+        return progress_remaining * initial_value
+
+    return func
+
+def step_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        lr = initial_value
+
+        if progress_remaining < 0.5:
+            lr = initial_value/2
+        else:
+            lr = initial_value
+            
         return progress_remaining * initial_value
 
     return func
@@ -131,13 +157,22 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 10e4
+    tot_timesteps = 7e6
     n_cpu = 20
     time_step = 0.1
     
-    # scene_option = (1, 3, 1)
+    # """
+    # test_scene_1_dict = {1: [1, 2, 3], 2: [1, 2, 3, 4], 3: [1, 2, 3, 4], 4: [1, 2]}
+    # test_scene_2_dict = {1: [1, 2, 3]}
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_eval, time_step = time_step)
+    # rl_index: 0 = image, 1 = ray
+    # decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
+    # """
+
+    # scene_option = (1, 2, 4)
+    # generate_map(*scene_option)
+
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -159,7 +194,7 @@ def run():
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
-                                 eval_freq=max((tot_timesteps / 100) // n_cpu, 1),
+                                 eval_freq=max((tot_timesteps / 1000) // n_cpu, 1),
                                  n_eval_episodes=n_cpu)
 
     if load_checkpoint:

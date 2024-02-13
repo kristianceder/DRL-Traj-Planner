@@ -31,7 +31,7 @@ from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
 def generate_map() -> MapDescription:
     # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex,generate_map_multi_robot3])()
 
 def run():
     # Selects which predefined agent model to use
@@ -129,7 +129,7 @@ def run():
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
-                                 eval_freq=max((tot_timesteps / 100) // n_cpu, 1),
+                                 eval_freq=max((tot_timesteps / 1000) // n_cpu, 1),
 				                n_eval_episodes=n_cpu)
 
     if load_checkpoint:

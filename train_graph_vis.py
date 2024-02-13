@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 def moving_average(x, w):
     return np.convolve(x,np.ones(w), 'valid') / w
 # Step 1: Read the text document
-# runs = [1,2,4,5,6]
+# runs = [1,2,4,5,6,8]
 runs = [5,6]
+runs = [8]
 numbers = {}
 for run in runs:
     path = f'Model/training/variant-0/run{run}/'
