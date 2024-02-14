@@ -489,7 +489,7 @@ def generate_map_eval() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_static([(-14, -5), (-8, -5), (-8, 7), (-14, 7)]))
     
     
-    obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.4, 0.7, 0.5, pi/4, random = False))
+    # obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.4, 0.7, 0.5, pi/4, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.4, 0.7, 1, 0, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 1, 0.5, -pi/4, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.2, 1, 1, pi/3, random = False))

@@ -152,10 +152,10 @@ def generate_simple_map_nonconvex_U() -> MapDescription:
     """
     Generates a randomized map with with one U-shape obstacle
     """
-    start_x = 5 + random.uniform(-2,2)
-    start_y = random.uniform(3,17)
-    goal_x = 35 + random.uniform(-2,2)
-    goal_y = random.uniform(3,17)
+    start_x = 5 + random.uniform(-4.4,2)
+    start_y = random.uniform(0.6,19.4)
+    goal_x = 35 + random.uniform(-2,4.4)
+    goal_y = random.uniform(0.6,19.4)
 
     init_state = np.array([start_x, start_y, random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
@@ -175,10 +175,10 @@ def generate_simple_map_nonconvex_L() -> MapDescription:
     """
     Generates a randomized map with with one L-shape obstacle
     """
-    start_x = 5 + random.uniform(-2,2)
-    start_y = random.uniform(3,17)
-    goal_x = 35 + random.uniform(-2,2)
-    goal_y = random.uniform(3,17)
+    start_x = 5 + random.uniform(-4.4,2)
+    start_y = random.uniform(0.6,19.4)
+    goal_x = 35 + random.uniform(-2,4.4)
+    goal_y = random.uniform(0.6,19.4)
 
     init_state = np.array([start_x, start_y, random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
@@ -198,10 +198,10 @@ def generate_simple_map_nonconvex_static() -> MapDescription:
     """
     Generates a randomized map with with one L-shape obstacle
     """
-    start_x = 5 + random.uniform(-2,2)
-    start_y = random.uniform(3,17)
-    goal_x = 37 + random.uniform(-2,2)
-    goal_y = random.uniform(3,17)
+    start_x = 5 + random.uniform(-4.4,2)
+    start_y = random.uniform(0.6,19.4)
+    goal_x = 35 + random.uniform(-2,4.4)
+    goal_y = random.uniform(0.6,19.4)
 
     init_state = np.array([start_x, start_y, random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
@@ -244,13 +244,13 @@ def generate_simple_map_dynamic1() -> MapDescription:
     boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
     obstacles = []
     goal = Goal((18 + random.uniform(-1,1), random.uniform(2,18)))
-    num_obstacle = random.randint(4,8)
+    num_obstacle = random.randint(3,6)
     for i in range(num_obstacle):
-        x1 = random.uniform(3,17)
-        y1 = random.uniform(3,17)
+        x1 = random.uniform(4,16)
+        y1 = random.uniform(4,16)
 
-        x2 = random.uniform(3,17)
-        y2 = random.uniform(3,17)
+        x2 = random.uniform(4,16)
+        y2 = random.uniform(4,16)
         rx = random.uniform(0.2, 1.2)
         ry = random.uniform(0.2, 1.2)
         freq = 1/(math.sqrt((x1-x2)**2+(y1-y2)**2))*random.uniform(1,2)
@@ -271,12 +271,12 @@ def generate_simple_map_dynamic2() -> MapDescription:
     y_min = 0
     y_max = 15
 
-    init_state = np.array([x_min + random.uniform(1,3), random.uniform(y_min + 2, y_max - 2), random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([x_min + random.uniform(0.5,2), random.uniform(y_min + 2, y_max - 2), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
     boundary = Boundary([(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)])
     obstacles = []
-    goal = Goal((x_max - random.uniform(1,3), random.uniform(y_min + 2,y_max - 2)))
-    num_obstacle = random.randint(6,12)
+    goal = Goal((x_max - random.uniform(0.5,2), random.uniform(y_min + 2,y_max - 2)))
+    num_obstacle = random.randint(4,10)
     delta = x_max//num_obstacle
     for i in range(num_obstacle):
         x1 =  (i+1)*delta + random.uniform(-2,2)
@@ -304,12 +304,12 @@ def generate_simple_map_dynamic3() -> MapDescription:
     y_min = 0
     y_max = 20
 
-    init_state = np.array([x_min + random.uniform(1,3), random.uniform(y_min + 2, y_max - 2), random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([x_min + random.uniform(0.5,2), random.uniform(y_min + 2, y_max - 2), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
     boundary = Boundary([(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)])
     obstacles = []
     goal = Goal((x_max - random.uniform(1,3), random.uniform(y_min + 2,y_max - 2)))
-    num_obstacle = random.randint(5,10)
+    num_obstacle = random.randint(4,8)
     delta = y_max//num_obstacle
     for i in range(num_obstacle):
         x1 =  x_min + 5

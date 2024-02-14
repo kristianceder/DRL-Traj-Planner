@@ -204,17 +204,17 @@ def generate_map_multi_robot3() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (1.5*nest_size, map_size - 1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, 1.5*nest_size), speed, 1, 0.5, 0, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((map_size-1.5*nest_size, 1.5*nest_size), (map_size-1.5*nest_size, map_size-1.5*nest_size), speed, 1, 0.5, pi/2, random = False))
-    speed = 0.2
-    for i in range(num_obstacles):
-        obs_start = positions.pop()
-        if obs_start[0] == 0.5*nest_size:
-            obstacles.append(Obstacle.create_mpc_dynamic((0.5*nest_size, obs_start[1]), (2.5*nest_size, obs_start[1]), speed, 0.8, 0.3, 0, random = False))
-        elif obs_start[0] == map_size-0.5*nest_size:
-            obstacles.append(Obstacle.create_mpc_dynamic((map_size - 0.5*nest_size, obs_start[1]), (map_size - 2.5*nest_size, obs_start[1]), speed, 0.8, 0.3, 0, random = False))
-        elif obs_start[1] == 0.5*nest_size:
-            obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0], 0.5*nest_size), (obs_start[0],2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
-        elif obs_start[1] == map_size-0.5*nest_size:
-            obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0],map_size - 0.5*nest_size), (obs_start[0],map_size - 2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
+    # speed = 0.2
+    # for i in range(num_obstacles):
+    #     obs_start = positions.pop()
+    #     if obs_start[0] == 0.5*nest_size:
+    #         obstacles.append(Obstacle.create_mpc_dynamic((0.5*nest_size, obs_start[1]), (2.5*nest_size, obs_start[1]), speed, 0.8, 0.3, 0, random = False))
+    #     elif obs_start[0] == map_size-0.5*nest_size:
+    #         obstacles.append(Obstacle.create_mpc_dynamic((map_size - 0.5*nest_size, obs_start[1]), (map_size - 2.5*nest_size, obs_start[1]), speed, 0.8, 0.3, 0, random = False))
+    #     elif obs_start[1] == 0.5*nest_size:
+    #         obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0], 0.5*nest_size), (obs_start[0],2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
+    #     elif obs_start[1] == map_size-0.5*nest_size:
+    #         obstacles.append(Obstacle.create_mpc_dynamic((obs_start[0],map_size - 0.5*nest_size), (obs_start[0],map_size - 2.5*nest_size), speed, 0.8, 0.3, pi/2, random = False))
     return MobileRobot(init_state), Boundary(nodes), obstacles, Goal((goal_position[0],goal_position[1]))
 
 

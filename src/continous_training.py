@@ -25,13 +25,58 @@ from pkg_ddpg_td3.utils.map_simple import generate_simple_map_dynamic, generate_
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
-
+from typing import Callable
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
+
+def step_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        lr = initial_value
+
+        if progress_remaining < 0.5:
+            lr = initial_value/2
+        else:
+            lr = initial_value
+            
+        return lr
+
+    return func
+
 def generate_map() -> MapDescription:
     # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex,generate_map_multi_robot3])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex, generate_simple_map_dynamic, generate_map_multi_robot3])()
 
 def run():
     # Selects which predefined agent model to use
@@ -109,10 +154,10 @@ def run():
     # Load a pre-trained model
     load_checkpoint = 0
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_multi_robot3})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_multi_robot3_eval})
-    check_env(env_eval)
+    # env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    # check_env(env_eval)
 
     n_actions  = vec_env.action_space.shape[-1]
     action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
@@ -139,7 +184,7 @@ def run():
                     vec_env, 
                     learning_rate=1e-4, 
                     buffer_size=int(2e6), 
-                    learning_starts=int(1e6),
+                    learning_starts=int(5e5),
                     batch_size=int(32), 
 		            tau=float(0.01),
                     gamma=float(0.98),

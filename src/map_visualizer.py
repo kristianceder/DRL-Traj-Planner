@@ -67,16 +67,21 @@ variant_list = [
         },
     ]
 
+def generate_map() -> MapDescription:
+    # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex,generate_simple_map_dynamic,generate_map_multi_robot3])()
+
 def run():
     
     index = 0
     variant = variant_list[index]
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = 0.1)
-    env_eval.reset()
-    # env_eval.step(np.array([0,0]))
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map, time_step = 0.1)
     while True:
-        env_eval.step(np.array([0,0]))
-        env_eval.render()
+        env_eval.reset()
+        # env_eval.step(np.array([0,0]))
+        for i in range(10):
+            env_eval.step(np.array([0,0]))
+            env_eval.render()
 
 
 
