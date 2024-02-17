@@ -6,6 +6,7 @@ from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, 
 # from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_static1
 from pkg_ddpg_td3.utils.map_simple import *
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
+from main_pre_continous import generate_map
 
 variant_list = [
         {
@@ -67,15 +68,32 @@ variant_list = [
         },
     ]
 
-def generate_map() -> MapDescription:
-    # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex,generate_simple_map_dynamic,generate_map_multi_robot3])()
+# def generate_map() -> MapDescription:
+#     # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
+#     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex,generate_simple_map_dynamic,generate_map_multi_robot3])()
+
+
+
 
 def run():
-    
+
     index = 0
     variant = variant_list[index]
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map, time_step = 0.1)
+    
+    scene_option_list = [
+                         (1, 1, 2), 
+                         (1, 1, 3), 
+                         (1, 2, 1), 
+                         (1, 2, 2), 
+                         (1, 3, 1), 
+                         (1, 3, 2), 
+                         (1, 4, 1),
+                         (2, 1, 1), 
+                         (2, 1, 2), 
+                         (2, 1, 3),
+                         ][3]
+    
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map(*scene_option_list), time_step = 0.1)
     while True:
         env_eval.reset()
         # env_eval.step(np.array([0,0]))

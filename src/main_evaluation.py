@@ -289,36 +289,56 @@ if __name__ == '__main__':
     - 2: Single dynamic obstacle
         - (1-right, 2-sharp, 3-u-shape)
     """
-    rl_index = 1
-    num_trials = 5
-    scene_option = (1, 3, 2)
 
-    mpc_metrics = Metrics(mode='mpc')
-    dqn_lid_metrics = Metrics(mode='dqn')
-    dqn_img_metrics = Metrics(mode='dqn')
-    hyb_lid_metrics = Metrics(mode='hyb')
-    hyb_img_metrics = Metrics(mode='hyb')
+    scene_option = [
+                    (1, 1, 2), 
+                    (1, 1, 3), 
+                    (1, 2, 1), 
+                    (1, 2, 2), # MPC cant handle
+                    (1, 3, 1), # MPC cant handle
+                    (1, 3, 2), # MPC cant handle
+                    (1, 4, 1),
+                    (2, 1, 1), # MPC cant handle
+                    (2, 1, 2), 
+                    (2, 1, 3), # MPC cant handle
+                    ][8]
+
+    rl_index = 1
+    num_trials = 50
+    # scene_option = (1, 1, 2)
+    print_latex = True
+
+    mpc_metrics = Metrics(mode='MPC')
+    # dqn_lid_metrics = Metrics(mode='dqn')
+    dqn_img_metrics = Metrics(mode='DQN-V')
+    # hyb_lid_metrics = Metrics(mode='hyb')
+    hyb_img_metrics = Metrics(mode='HYB-DQN-V')
 
     for i in range(num_trials):
         print(f"Trial {i+1}/{num_trials}")
         mpc_metrics = main_evaluate(rl_index=1, decision_mode=1, metrics=mpc_metrics, scene_option=scene_option)
-        dqn_lid_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=dqn_lid_metrics, scene_option=scene_option)
-        dqn_img_metrics = main_evaluate(rl_index=0, decision_mode=0, metrics=dqn_img_metrics, scene_option=scene_option)
-        hyb_lid_metrics = main_evaluate(rl_index=1, decision_mode=2, metrics=hyb_lid_metrics, scene_option=scene_option)
-        hyb_img_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=hyb_img_metrics, scene_option=scene_option)
+        # dqn_lid_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=dqn_lid_metrics, scene_option=scene_option)
+        # dqn_img_metrics = main_evaluate(rl_index=0, decision_mode=0, metrics=dqn_img_metrics, scene_option=scene_option)
+        # hyb_lid_metrics = main_evaluate(rl_index=1, decision_mode=2, metrics=hyb_lid_metrics, scene_option=scene_option)
+        # hyb_img_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=hyb_img_metrics, scene_option=scene_option)
 
     round_digits = 2
     print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
     print(mpc_metrics.get_average(round_digits))
     print()
-    print(dqn_lid_metrics.get_average(round_digits))
-    print()
-    print(dqn_img_metrics.get_average(round_digits))
-    print()
-    print(hyb_lid_metrics.get_average(round_digits))
-    print()
-    print(hyb_img_metrics.get_average(round_digits))
-    print('='*50)
+    # print(dqn_lid_metrics.get_average(round_digits))
+    # print()
+    # print(dqn_img_metrics.get_average(round_digits))
+    # print()
+    # print(hyb_lid_metrics.get_average(round_digits))
+    # print()
+    # print(hyb_img_metrics.get_average(round_digits))
+    # print('='*50)
 
+    if print_latex:
+        print(f"%=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
+        print(mpc_metrics.write_latex(round_digits))
+        # print(dqn_img_metrics.write_latex(round_digits))
+        # print(hyb_img_metrics.write_latex(round_digits))
 
 

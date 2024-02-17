@@ -31,9 +31,10 @@ from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
 from main_pre_continous import generate_map
 
-# def generate_map() -> MapDescription:
-#     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
-    # return random.choice([generate_map_dynamic])()
+import tqdm
+def generate_map() -> MapDescription:
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
+    return random.choice([generate_map_dynamic])()
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
     """
@@ -76,7 +77,7 @@ def step_schedule(initial_value: float) -> Callable[[float], float]:
         else:
             lr = initial_value
             
-        return progress_remaining * initial_value
+        return lr
 
     return func
 
@@ -85,7 +86,7 @@ def run():
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])      #training on cluster
     index = 0                       #training local
-    run_vers = 2
+    run_vers = 11
     # Load a pre-trained model
     load_checkpoint = True
 
@@ -159,7 +160,7 @@ def run():
 
     tot_timesteps = 7e6
     n_cpu = 20
-    time_step = 0.1
+    # time_step = 0.1
     
     # """
     # test_scene_1_dict = {1: [1, 2, 3], 2: [1, 2, 3, 4], 3: [1, 2, 3, 4], 4: [1, 2]}
@@ -169,10 +170,10 @@ def run():
     # decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     # """
 
-    # scene_option = (1, 2, 4)
+    scene_option = (1, 4, 1)
     # generate_map(*scene_option)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_dynamic)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -203,7 +204,7 @@ def run():
 
         with no_grad():
             rew_list = []
-            for j in range(500):
+            for j in tqdm.tqdm(range(500)):
                 obs = env_eval.reset()
                 
                 cum_ret = 0

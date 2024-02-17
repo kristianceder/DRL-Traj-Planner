@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH -A C3SE2024-1-13                    # find your project with the "projinfo" command
-#SBATCH -t 3-00:00:00                       # how long time it will take to run
+#SBATCH -t 4-12:00:00                       # how long time it will take to run
 #SBATCH -n 32                               # Number of cores
 #SBATCH --gpus-per-node=T4:1                # choosing no. GPUs and their type
 #SBATCH -J drl-var0-run9                    # the jobname

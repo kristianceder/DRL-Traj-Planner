@@ -149,7 +149,7 @@ def run():
 
     tot_timesteps = 7e6
     n_cpu = 32
-    time_step = 0.1
+    # time_step = 0.1
     
     # Load a pre-trained model
     load_checkpoint = 0

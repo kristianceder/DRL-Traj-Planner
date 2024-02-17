@@ -9,6 +9,7 @@ def moving_average(x, w):
 # runs = [1,2,4,5,6,8]
 runs = [5,6]
 runs = [8]
+runs = [9,10,11]
 numbers = {}
 for run in runs:
     path = f'Model/training/variant-0/run{run}/'
