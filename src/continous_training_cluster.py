@@ -33,7 +33,7 @@ from main_pre_continous import generate_map
 
 import tqdm
 def generate_map() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_easy])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_map_multi_robot3])()
     return random.choice([generate_map_dynamic])()
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:

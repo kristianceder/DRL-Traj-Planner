@@ -56,20 +56,20 @@ def generate_simple_map_static1() -> MapDescription:
     Generates a randomized map with one static obstacle
     """
 
-    init_state = np.array([4 + random.uniform(-2,2), random.uniform(1,19), random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([2.6 + random.uniform(-2,2), random.uniform(0.6,19.4), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
-    boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
     obstacles = []
-    x_top = random.uniform(11,13)
-    x_bot = random.uniform(7,9)
+    x_top = random.uniform(15.5,17)
+    x_bot = random.uniform(13,14.5)
     y_top = random.uniform(12,18)
     y_bot = random.uniform(2,8)
     obstacles.append(Obstacle.create_mpc_static([(x_bot, y_top), 
                                                  (x_bot, y_bot), 
                                                  (x_top, y_bot),
                                                  (x_top, y_top)]))
-    goal = Goal((15 + random.uniform(-1,1), random.uniform(5,15)))
-    if random.random() < 0.2:
+    goal = Goal((38.5 + random.uniform(-1,1), random.uniform(0.6,19.4)))
+    if random.random() < 0.5:
         obstacles[0].visible_on_reference_path=False
     return robot, boundary, obstacles, goal
 
@@ -77,21 +77,52 @@ def generate_simple_map_static2() -> MapDescription:
     """
     Generates a randomized map with one static obstacle
     """
-    raise NotImplementedError
-    init_state = np.array([3 + random.uniform(-1,1), random.uniform(1,19), random.uniform(-pi, pi), 0, 0])
+    start_x = 2.6 + random.uniform(-2,2)
+    start_y = random.uniform(3,17)
+    goal_x = 37.5 + random.uniform(-2,2)
+    goal_y = random.uniform(3,17)
+
+    init_state = np.array([start_x, start_y, random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
-    boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
     obstacles = []
-    x_top = random.uniform(11,13)
-    x_bot = random.uniform(7,9)
-    y_top = random.uniform(12,18)
-    y_bot = random.uniform(2,8)
-    obstacles.append(Obstacle.create_mpc_static([(x_bot, y_top), 
-                                                 (x_bot, y_bot), 
-                                                 (x_top, y_bot),
-                                                 (x_top, y_top)],
-                                                 np.random.choice([True,False])))
-    goal = Goal((17 + random.uniform(-1,1), random.uniform(5,15)))
+
+    wall_center = random.uniform(15, 30)
+    r = random.uniform(0,3)
+    port_center = random.uniform(3,17)
+    tunnel = random.uniform(0.7,1.2)
+
+    obstacles.append(Obstacle.create_mpc_static([   (wall_center - r, 20), 
+                                                    (wall_center - r, port_center + 1), 
+                                                    (wall_center + r, port_center + 1),
+                                                    (wall_center + r, 20)]))
+    
+    obstacles.append(Obstacle.create_mpc_static([   (wall_center - r, 0), 
+                                                    (wall_center - r, port_center - 1), 
+                                                    (wall_center + r, port_center - 1),
+                                                    (wall_center + r, 0)]))
+    offset = random.uniform(1.5,4.5)
+    thickness = random.uniform(1,3)
+    height = random.uniform(0.5,2)
+    if random.random() < 0.5:
+        obstacles.append(Obstacle.create_mpc_static([   (wall_center - r - offset, 0), 
+                                                        (wall_center - r - offset, port_center + 1), 
+                                                        (wall_center - r - offset - thickness, port_center + 1),
+                                                        (wall_center - r - offset - thickness, 0)]))
+    else:
+        obstacles.append(Obstacle.create_mpc_static([   (wall_center - r - offset, 20), 
+                                                        (wall_center - r - offset, port_center - 1), 
+                                                        (wall_center - r - offset - thickness, port_center - 1),
+                                                        (wall_center - r - offset - thickness, 20)]))
+
+    goal = Goal((goal_x, goal_y))
+    obstacles[-1].visible_on_reference_path=random.choice([True,False])
+
+    rx = random.uniform(0.2, 1.2)
+    ry = random.uniform(0.2, 1.2)
+    freq = 1/math.sqrt(((goal_x-(wall_center+r))**2+(goal_y-port_center)**2))*random.uniform(1,2)
+    angle = math.atan2(port_center-goal_y,wall_center + r - goal_x)
+    obstacles.append(Obstacle.create_mpc_dynamic((goal_x, goal_y), (wall_center+r, port_center), freq, rx, ry, angle, random = False))
 
     return robot, boundary, obstacles, goal
 
@@ -376,4 +407,4 @@ def generate_simple_map_static() -> MapDescription:
     return random.choice([generate_simple_map_static1, generate_simple_map_static3])()
 
 def generate_simple_map_nonconvex() -> MapDescription:
-    return random.choice([generate_simple_map_nonconvex_U, generate_simple_map_nonconvex_L, generate_simple_map_nonconvex_static])()
+    return random.choice([generate_simple_map_nonconvex_U, generate_simple_map_nonconvex_L, generate_simple_map_nonconvex_static,generate_simple_map_static2])()

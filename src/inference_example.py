@@ -11,6 +11,7 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 import gym
 
 from pkg_ddpg_td3.utils.map import generate_map_eval
+from pkg_ddpg_td3.utils.map_simple import *
 from pkg_ddpg_td3.inference_model import inference_model
 
 def run():
