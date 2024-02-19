@@ -11,7 +11,8 @@ import numpy as np
 from math import pi, radians, cos, sin
 
 from ..environment import MobileRobot, Obstacle, Boundary, Goal, MapDescription, MapGenerator
-
+from .map_multi_robot import generate_map_multi_robot3
+from .map import generate_map_corridor
 from typing import Union, List, Tuple
 
 ### Training maps ###
@@ -155,27 +156,57 @@ def generate_simple_map_static4() -> MapDescription:
     Generates a randomized maze-like map
     """
 
-    raise NotImplementedError
-
-    init_state = np.array([2 + random.uniform(-1,1), random.uniform(1,29), random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([random.uniform(0.6,2.4), random.uniform(0.6,19.4), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
-    boundary = Boundary([(0, 0), (30, 0), (30, 30), (0, 30)])
+    boundary = Boundary([(0, 0), (25, 0), (25, 20), (0, 20)])
     obstacles = []
+    walls = [5,10,15,20]
+
+    last_right = False
+
+    for wall in walls:
+        center = random.uniform(2,18)
+        offset = random.uniform(0,2)
+        obstacles.append(Obstacle.create_mpc_static([   ( wall - 1, 20), 
+                                                        ( wall + 1, 20), 
+                                                        ( wall + 1, center + 1),
+                                                        ( wall - 1, center + 1)]))
+        obstacles.append(Obstacle.create_mpc_static([   ( wall - 1, 0), 
+                                                        ( wall + 1, 0), 
+                                                        ( wall + 1, center - 1),
+                                                        ( wall - 1, center - 1)]))
+        
+        if not last_right and random.choice([True,False]):
+            if center < 10:
+                obstacles.append(Obstacle.create_mpc_static([( wall - 2, center + 2 + offset), 
+                                                            ( wall - 1, center + 2 + offset), 
+                                                            ( wall - 1, center + 1 + offset),
+                                                            ( wall - 2, center + 1 + offset)]))
+            else:
+                obstacles.append(Obstacle.create_mpc_static([( wall - 2, center - 2 - offset), 
+                                                            ( wall - 1, center - 2 - offset), 
+                                                            ( wall - 1, center - 1 - offset),
+                                                            ( wall - 2, center - 1 - offset)]))
+            obstacles[-1].visible_on_reference_path=False
+
+        if random.choice([True,False]):
+            if center < 10:
+                obstacles.append(Obstacle.create_mpc_static([( wall + 2, center + 2 + offset), 
+                                                            ( wall + 1, center + 2 + offset), 
+                                                            ( wall + 1, center + 1 + offset),
+                                                            ( wall + 2, center + 1 + offset)]))
+            else:
+                obstacles.append(Obstacle.create_mpc_static([( wall + 2, center - 2 - offset), 
+                                                            ( wall + 1, center - 2 - offset), 
+                                                            ( wall + 1, center - 1 - offset),
+                                                            ( wall + 2, center - 1 - offset)]))
+            obstacles[-1].visible_on_reference_path=False
+            last_right = True
+        else:
+            last_right = False
     
-    r = random.uniform(0.4,1)
-
-    a = random.uniform(1,17)
-    b = random.uniform(1,17)
-    c = random.uniform(1,17)
-
-    d = random.uniform(1,12)
-    e = random.uniform(4.5,12.5)
-
-    obstacles.append(Obstacle.create_mpc_static([   ( 5, 20), 
-                                                    ( 5, a + r), 
-                                                    ( 5 + d, a + r),
-                                                    ( 5 + d, 20)]))
-
+    goal = Goal((23.4 + random.uniform(-1,1), random.uniform(0.6,19.4)))
+    return robot, boundary, obstacles, goal
 
 
 
@@ -404,7 +435,7 @@ def generate_simple_map_dynamic() -> MapDescription:
     return random.choice([generate_simple_map_dynamic1, generate_simple_map_dynamic2, generate_simple_map_dynamic3, generate_simple_map_dynamic4])()
 
 def generate_simple_map_static() -> MapDescription:
-    return random.choice([generate_simple_map_static1, generate_simple_map_static3])()
+    return random.choice([generate_simple_map_static2, generate_simple_map_static4, generate_map_multi_robot3,generate_map_corridor])()
 
 def generate_simple_map_nonconvex() -> MapDescription:
-    return random.choice([generate_simple_map_nonconvex_U, generate_simple_map_nonconvex_L, generate_simple_map_nonconvex_static,generate_simple_map_static2])()
+    return random.choice([generate_simple_map_nonconvex_U, generate_simple_map_nonconvex_L, generate_simple_map_nonconvex_static])()

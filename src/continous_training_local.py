@@ -20,7 +20,7 @@ from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
 from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval, generate_map_easy, generate_simple_map_static
+from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from typing import Callable
@@ -128,13 +128,12 @@ def run():
 
     tot_timesteps = 10e4
     n_cpu = 20
-    time_step = 0.1
     
     
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_static, time_step = time_step)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_eval)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]

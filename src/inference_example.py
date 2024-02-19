@@ -20,7 +20,7 @@ def run():
     # path = './Model/testing/variant-0/run1'
 
     path = './Model/ddpg/image'
-    env_eval = gym.make('TrajectoryPlannerEnvironmentImgsReward1-v0', generate_map=generate_map_eval, time_step = 0.1)
+    env_eval = gym.make('TrajectoryPlannerEnvironmentImgsReward1-v0', generate_map=generate_map_eval)
 
     model = inference_model(path,env_eval)
 

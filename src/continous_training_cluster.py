@@ -21,7 +21,8 @@ from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval, generate_map_scene_1, generate_map_scene_2
-from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_dynamic4
+# from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_dynamic3
+from pkg_ddpg_td3.utils.map_simple import *
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
@@ -33,7 +34,7 @@ from main_pre_continous import generate_map
 
 import tqdm
 def generate_map() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_map_multi_robot3])()
+    return random.choice([generate_map_dynamic, generate_simple_map_dynamic,generate_simple_map_nonconvex,generate_simple_map_static])()
     return random.choice([generate_map_dynamic])()
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
@@ -86,7 +87,7 @@ def run():
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])      #training on cluster
     index = 0                       #training local
-    run_vers = 11
+    run_vers = 12
     # Load a pre-trained model
     load_checkpoint = True
 
@@ -160,7 +161,6 @@ def run():
 
     tot_timesteps = 7e6
     n_cpu = 20
-    # time_step = 0.1
     
     # """
     # test_scene_1_dict = {1: [1, 2, 3], 2: [1, 2, 3, 4], 3: [1, 2, 3, 4], 4: [1, 2]}
@@ -173,7 +173,7 @@ def run():
     scene_option = (1, 4, 1)
     # generate_map(*scene_option)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_dynamic)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -200,11 +200,11 @@ def run():
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=env_eval)
-        plot_training_results(path)
+        # plot_training_results(path)
 
         with no_grad():
             rew_list = []
-            for j in tqdm.tqdm(range(500)):
+            for j in tqdm.tqdm(range(64)):
                 obs = env_eval.reset()
                 
                 cum_ret = 0
@@ -212,11 +212,11 @@ def run():
                     action, _states = model.predict(obs, deterministic=True)
                     obs, reward, done, info = env_eval.step(action)
                     cum_ret += reward
-                    if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
-                        # vec_env.render("human")
-                        env_eval.render()
+                    # if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
+                    #     # vec_env.render("human")
+                    #     env_eval.render()
                     if done:
-                        print(cum_ret)
+                        # print(cum_ret)
                         rew_list.append(cum_ret)
                         break
             print(f'mean={sum(rew_list)/len(rew_list)}')

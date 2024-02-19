@@ -20,9 +20,8 @@ from stable_baselines3.common.callbacks import EvalCallback
 # from src.pkg_ddpg_td3.utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
+from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_eval
 from pkg_ddpg_td3.utils.map_simple import generate_simple_map_dynamic, generate_simple_map_nonconvex, generate_simple_map_static
-from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from typing import Callable
@@ -76,7 +75,7 @@ def step_schedule(initial_value: float) -> Callable[[float], float]:
 
 def generate_map() -> MapDescription:
     # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_static, generate_simple_map_dynamic, generate_simple_map_nonconvex])()
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc(), generate_simple_map_nonconvex, generate_simple_map_dynamic, generate_map_multi_robot3])()
+    return random.choice([generate_map_dynamic, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_static])()
 
 def run():
     # Selects which predefined agent model to use
@@ -149,12 +148,11 @@ def run():
 
     tot_timesteps = 7e6
     n_cpu = 32
-    # time_step = 0.1
     
     # Load a pre-trained model
     load_checkpoint = 0
 
-    # env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3, time_step = time_step)
+    # env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
     # check_env(env_eval)
@@ -175,7 +173,7 @@ def run():
                                  best_model_save_path=path,
                                  log_path=path,
                                  eval_freq=max((tot_timesteps / 1000) // n_cpu, 1),
-				                n_eval_episodes=n_cpu)
+				                n_eval_episodes=2*n_cpu)
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=vec_env)
@@ -184,7 +182,7 @@ def run():
                     vec_env, 
                     learning_rate=1e-4, 
                     buffer_size=int(2e6), 
-                    learning_starts=int(5e5),
+                    learning_starts=int(1e6),
                     batch_size=int(32), 
 		            tau=float(0.01),
                     gamma=float(0.98),

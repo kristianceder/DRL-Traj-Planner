@@ -10,7 +10,7 @@ class TrajectoryPlannerEnvironmentGoal(TrajectoryPlannerEnvironment):
     def __init__(
         self,
         generate_map: MapGenerator,
-        time_step: float = 0.1,
+        time_step: float = 0.2,
         goal_distance_reward_factor: float = 1,
         reach_goal_reward_factor: float = 0,
         time_cost_factor: float = 0.1
