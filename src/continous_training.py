@@ -154,7 +154,7 @@ def run():
 
     # env_eval = gym.make(variant['env_name'], generate_map=generate_map_multi_robot3)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
     # check_env(env_eval)
 
     n_actions  = vec_env.action_space.shape[-1]
@@ -172,8 +172,8 @@ def run():
     eval_callback = EvalCallback(vec_env_eval,
                                  best_model_save_path=path,
                                  log_path=path,
-                                 eval_freq=max((tot_timesteps / 1000) // n_cpu, 1),
-				                n_eval_episodes=2*n_cpu)
+                                 eval_freq=max((tot_timesteps / 2000) // n_cpu, 1),
+				                n_eval_episodes=4*n_cpu)
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=vec_env)
@@ -181,7 +181,7 @@ def run():
         model = Algorithm("MultiInputPolicy",
                     vec_env, 
                     learning_rate=1e-4, 
-                    buffer_size=int(2e6), 
+                    buffer_size=int(1e6), 
                     learning_starts=int(1e6),
                     batch_size=int(32), 
 		            tau=float(0.01),
