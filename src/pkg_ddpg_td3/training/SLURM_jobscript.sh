@@ -3,7 +3,7 @@
 #SBATCH -t 4-12:00:00                       # how long time it will take to run
 #SBATCH -n 32                               # Number of cores
 #SBATCH --gpus-per-node=T4:1                # choosing no. GPUs and their type
-#SBATCH -J v1-run1                    # the jobname
+#SBATCH -J v0-run19                    # the jobname
 
 module purge
 
@@ -11,8 +11,8 @@ REPO_NAME=DRL-Traj-Planner
 REPO_PATH=~/github/$REPO_NAME
 CONTAINER=src/pkg_ddpg_td3/training/container.sif
 TRAINING_SCRIPT=src/continous_training.py
-MODEL=1
-RUN=1
+MODEL=0
+RUN=19
 
 
 cp -r $REPO_PATH $TMPDIR
