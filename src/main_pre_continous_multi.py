@@ -11,7 +11,7 @@ from pkg_obstacle import geometry_tools
 
 from pkg_ddpg_td3.environment import MapDescription, MapGenerator
 from pkg_ddpg_td3.utils.map_multi import generate_map_scene_0, generate_map_scene_1, generate_map_scene_2
-from pkg_ddpg_td3.utils.map_multi import generate_map_scene_3
+from pkg_ddpg_td3.utils.map_multi import generate_map_scene_3, generate_map_scene_4, generate_map_scene_5
 
 
 
@@ -37,7 +37,8 @@ class HintSwitcher:
         if self.always_on:
             return True
         cnt_flag = False
-        for old_pos, new_pos in zip(original_traj, new_traj):
+        for i, old_pos in enumerate(original_traj):
+            new_pos = new_traj[i] if i < len(new_traj) else new_traj[-1]
             for obstacle in obstacle_list:
                 shapely_obstacle = Polygon(obstacle)
                 dist = shapely_obstacle.distance(Point(current_position))
@@ -177,8 +178,12 @@ def generate_map(scene:int=1, generator:bool=True) -> Union[list[MapDescription]
         map_des_list = generate_map_scene_2()
     elif scene == 3:
         map_des_list = generate_map_scene_3()
+    elif scene == 4:
+        map_des_list = generate_map_scene_4()
+    elif scene == 5:
+        map_des_list = generate_map_scene_5()
     else:
-        raise ValueError(f"Scene {scene} not recognized (should be 0, 1, 2, 3).")
+        raise ValueError(f"Scene {scene} not recognized (should be 0-5).")
     
     def get_map_generator(index: int) -> MapGenerator:
         def _generate_map() -> MapDescription:

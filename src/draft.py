@@ -12,7 +12,21 @@ from scipy import interpolate
 
 from shapely.geometry import LinearRing, Point, Polygon, LineString
 
-print([(v, w) for (v, w) in zip(range(10), range(1,11))])
+
+# sigmoid with custom range (y_min, y_max) and midpoint (x_mid) and possibly flipped y-axis around the midpoint
+def sigmoid_custom(x, y_min, y_max, x_mid=0, y_flip=False):
+    if y_flip:
+        return y_max - (y_max - y_min) / (1 + np.exp(-x + x_mid))
+    else:
+        return y_min + (y_max - y_min) / (1 + np.exp(-x + x_mid))
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+x = np.linspace(-0, 20, 100)
+y = sigmoid_custom(x, 0.5, 1.0, x_mid=10, y_flip=True)
+plt.plot(x, y)
+plt.show()
 
 sys.exit(0)
 

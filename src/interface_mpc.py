@@ -71,14 +71,19 @@ class InterfaceMpc:
         """other_robot_states: A list with length "ns*N_hor*Nother" (E.x. [0,0,0] * (self.N_hor*self.config.Nother))"""
         self.other_robot_states = other_robot_states
 
-    def get_local_ref_traj(self, local_ref_traj:np.ndarray=None) -> Tuple[np.ndarray, np.ndarray]:
+    def get_local_ref_traj(self, local_ref_traj:np.ndarray=None, extra_horizon:int=40) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
         idx_ref = self._traj_gen.idx_ref
+
+        extra_ref_traj = None
+        if extra_horizon > self.config.N_hor:
+            extra_ref_traj, *_ = self._traj_gen.get_local_ref_traj(idx_ref, self.ref_traj, self.state, action_steps=self.config.action_steps, horizon=extra_horizon)
+        
         original_ref_traj, idx_ref = self._traj_gen.get_local_ref_traj(idx_ref, self.ref_traj, self.state, action_steps=self.config.action_steps, horizon=self.config.N_hor)
         self._traj_gen.idx_ref = idx_ref
         if local_ref_traj is not None:
             if local_ref_traj.shape[1] == 2:
                 local_ref_traj = np.concatenate((local_ref_traj, original_ref_traj[:,[2]]), axis=1)
-        return original_ref_traj, local_ref_traj
+        return original_ref_traj, local_ref_traj, extra_ref_traj
     
     def get_action(self, current_ref_traj: np.ndarray, mode='work', initial_guess:np.ndarray=None):
         """If termination condition is met, return None."""

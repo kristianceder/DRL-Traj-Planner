@@ -19,7 +19,7 @@ Comments:
     Adjust MAX_SOVLER_TIME accordingly.
 '''
 
-MAX_SOVLER_TIME = 5_000_000 # micros (default 5 sec)
+MAX_SOVLER_TIME = 1_000_000 # micros (default 1 sec)
 
 #%%## Helper functions ###
 def dist_to_points_square(point:cs.SX, points:List[Union[cs.SX, cs.DM]]):
@@ -204,16 +204,25 @@ class MpcModule:
             state_next = dynamics(state_next, u_t, self.ts) # Kinematic/dynamic model
 
             ### Reference deviation costs
-            cost += cost_refpath_deviation(state_next, path_ref[kt:], weight=qrpd) # [cost] reference path deviation cost
+            cost_ref = cost_refpath_deviation(state_next, path_ref[kt:], weight=qrpd) # [cost] reference path deviation cost
+            # cost += 20*cs.log(cost_ref+1)
+            cost += cost_ref
             cost += cost_refvalue_deviation(u_t[0], r[self.ns*self.N_hor+kt], weight=qvel) # [cost] refenrence velocity deviation
             cost += cost_control_action(u_t, cs.vertcat(rv, rw)) # [cost] penalize control actions
 
             ### Fleet collision avoidance
-            other_robots_x = c[kt*self.ns  ::self.ns*self.N_hor] # first  state
-            other_robots_y = c[kt*self.ns+1::self.ns*self.N_hor] # second state
-            other_robots = cs.hcat([other_robots_x, other_robots_y]) # states of other robots at time kt (Nother*ns)
-            other_robots = cs.transpose(other_robots) # every column is a state of a robot
-            cost += cost_fleet_collision(state_next[:2], other_robots, safe_distance=self.config.vehicle_width*2.5, weight=1000)
+            other_robots_x_0 = c[0*self.ns  ::self.ns*self.N_hor] # first  state
+            other_robots_y_0 = c[0*self.ns+1::self.ns*self.N_hor] # second state
+            other_robots_0 = cs.hcat([other_robots_x_0, other_robots_y_0]) # states of other robots at time kt (Nother*ns)
+            other_robots_0 = cs.transpose(other_robots_0) # every column is a state of a robot
+
+            other_robots_x_kt = c[kt*self.ns  ::self.ns*self.N_hor] # first  state
+            other_robots_y_kt = c[kt*self.ns+1::self.ns*self.N_hor] # second state
+            other_robots_kt = cs.hcat([other_robots_x_kt, other_robots_y_kt]) # states of other robots at time kt (Nother*ns)
+            other_robots_kt = cs.transpose(other_robots_kt) # every column is a state of a robot
+
+            cost += cost_fleet_collision(state_next[:2], other_robots_kt, 
+                                         safe_distance=self.config.vehicle_width*3.0, weight=1000)
 
             ### Static obstacles
             for i in range(self.config.Nstcobs):

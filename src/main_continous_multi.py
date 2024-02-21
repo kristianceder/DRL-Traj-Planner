@@ -99,7 +99,7 @@ def circle_to_rect(pos: list, radius:float=DYN_OBS_SIZE):
     return [[pos[0]-radius, pos[1]-radius], [pos[0]+radius, pos[1]-radius], [pos[0]+radius, pos[1]+radius], [pos[0]-radius, pos[1]+radius]]
 
 
-def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1, save=False):
+def main(rl_index:int=1, decision_mode:int=1, to_plot=False, map_only=False, scene_option:int=1, save=False):
     """
     Args:
         rl_index: 0 for image, 1 for ray
@@ -114,6 +114,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
     num_robots = len(env_eval_list)
 
     CONFIG_FN = 'mpc_longiter.yaml'
+    # CONFIG_FN = 'mpc_default.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
     config_mpc = Configurator(cfg_fpath)
     traj_gen_list = [load_mpc(config_mpc) for _ in range(num_robots)]
@@ -127,9 +128,9 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
     color_list = ['#2878b5', '#9ac9db', '#f8ac8c', '#c82423', '#bb9727', 
                   '#54b345', '#32b897', '#05b9e2', '#8983bf', '#c76da2',
                   '#f8ac8c', '#c82423', '#bb9727', '#54b345', '#32b897',]
-    done = False
+    done_list = [False for _ in range(num_robots)]
     with no_grad():
-        while not done:
+        while not all(done_list):
             obsv_list = [env.reset() for env in env_eval_list]
 
             init_state_list = [np.array([*env.agent.position, env.agent.angle]) for env in env_eval_list]
@@ -151,20 +152,30 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
             rl_ref = None
             last_dyn_obstacle_list = None      
 
-            switch = HintSwitcher(20, 2, 10, always_on=True)
+            switch = HintSwitcher(20, 2, 10, always_on=False)
 
             if to_plot:
-                if rl_index == 0: # image
-                    fig = plt.figure(figsize=(22, 6))
-                    gs = gridspec.GridSpec(1, 3, width_ratios=[3, 2, 2])
-                    axes = [fig.add_subplot(gs_) for gs_ in gs]
-                    ax_main, ax_profile, ax_obsv = axes
-                else: # ray
-                    fig = plt.figure(figsize=(16, 6))
-                    gs = gridspec.GridSpec(1, 2, width_ratios=[3, 2])
-                    axes = [fig.add_subplot(gs_) for gs_ in gs]
-                    ax_main, ax_profile = axes
+                
+                if map_only:
+                    fig, ax_main = plt.subplots(figsize=(10, 10))
+                    fig.tight_layout()
+                    ax_profile = None
                     ax_obsv = None
+                    axes = [ax_main]
+                else:
+                    if rl_index == 0: # image
+                        fig = plt.figure(figsize=(22, 6))
+                        gs = gridspec.GridSpec(1, 3, width_ratios=[3, 2, 2])
+                        axes = [fig.add_subplot(gs_) for gs_ in gs]
+                        ax_main, ax_profile, ax_obsv = axes
+                    else: # ray
+                        fig = plt.figure(figsize=(16, 6))
+                        gs = gridspec.GridSpec(1, 2, width_ratios=[3, 2])
+                        axes = [fig.add_subplot(gs_) for gs_ in gs]
+                        ax_main, ax_profile = axes
+                        ax_obsv = None
+                    fig.tight_layout()
+
                 ax_main.set_aspect('equal')
 
             for i in range(0, MAX_RUN_STEP):
@@ -189,7 +200,9 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                 plot_obsv = True
                 if to_plot:
                     [ax.cla() for ax in axes]
+
                 for robot_i in range(len(env_eval_list)):
+
                     obsv = obsv_list[robot_i]
                     traj_gen, env_eval = traj_gen_list[robot_i], env_eval_list[robot_i]
                     theme_color = color_list[robot_i]
@@ -205,7 +218,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                         other_robot_states = robot_manager.get_other_robot_states(robot_i)
                         traj_gen.update_other_robot_states(other_robot_states)
 
-                        original_ref_traj, _ = traj_gen.get_local_ref_traj()
+                        original_ref_traj, *_ = traj_gen.get_local_ref_traj()
                         chosen_ref_traj = original_ref_traj
 
                         timer_mpc = PieceTimer()
@@ -217,15 +230,16 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                             break
                         last_mpc_time = timer_mpc(4, ms=True)
                         if mpc_output is None:
-                            break
+                            done = True
+                        else:
+                            action, pred_states, cost = mpc_output
+                            robot_manager.set_pred_states(robot_i, pred_states)
 
-                        action, pred_states, cost = mpc_output
                         robot_manager.set_robot_state(robot_i, traj_gen.state)
-                        robot_manager.set_pred_states(robot_i, pred_states)
 
                     elif decision_mode == 1:
                         traj_gen.set_current_state(env_eval.agent.state)
-                        original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                        original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                         timer_rl = PieceTimer()
                         action_index, _states = ddpg_model.predict(obsv, deterministic=True)
@@ -238,7 +252,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
 
                     elif decision_mode == 2:
                         traj_gen.set_current_state(env_eval.agent.state)
-                        original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                        original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                         timer_rl = PieceTimer()
                         action_index, _states = td3_model.predict(obsv, deterministic=True)
@@ -280,10 +294,10 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                         other_robot_states = robot_manager.get_other_robot_states(robot_i)
                         traj_gen.update_other_robot_states(other_robot_states)
 
-                        original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
-                        filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
+                        original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref), extra_horizon=int(traj_gen.config.N_hor*2))
+                        filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1.0) # decay=1 means no decay
                         other_robot_states_poly = [x for i, x in enumerate(robot_states_poly) if i != robot_i]
-                        if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly+other_robot_states_poly):
+                        if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly+other_robot_states_poly):
                             chosen_ref_traj = filtered_ref_traj
                         else:
                             chosen_ref_traj = original_ref_traj
@@ -335,7 +349,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                         other_robot_states = robot_manager.get_other_robot_states(robot_i)
                         traj_gen.update_other_robot_states(other_robot_states)
                         
-                        original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
+                        original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
                         filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
                         other_robot_states_poly = [x for i, x in enumerate(robot_states_poly) if i != robot_i]
                         if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly+other_robot_states_poly):
@@ -392,8 +406,14 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                             vis_component = False if decision_mode == 0 else True
                         env_eval.render_ax(ax_main, ax_profile, ax_obsv=ax_obsv, plot_map=plot_map, plot_obsv=plot_obsv, vis_component=vis_component,
                                            drl_ref=rl_ref, actual_ref=chosen_ref_traj, original_ref=original_ref_traj, theme_color=theme_color)
+                        # add text at the right bottom
+                        ax_main.text(0.99, 0.01, f"Timestep: {i}", fontsize=16, ha='right', va='bottom', transform=ax_main.transAxes)
                         plot_map = False
                         plot_obsv = False
+
+                    if done:
+                        done_list[robot_i] = True
+                        print(f"Robor {robot_i} finish (Succeed: {info['success']})!")
 
                 if to_plot:
                     plt.pause(0.01)
@@ -414,58 +434,61 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:int=1,
                         handles = [leg_border, leg_robot, leg_past_traj, leg_original_ref, leg_actual_ref]
                     if decision_mode in [3, 4]:
                         handles.append(leg_rl_ref)
-                    ax_main.legend(handles=handles, loc='upper right')
-                    ax_main.set_title(f'Simulation for {len(env_eval_list)} robots (different colors for different robots)')
+                    if map_only:
+                        ax_main.legend(handles=handles, loc='upper left', prop={'size': 16}, ncol=3)
+                    else:
+                        ax_main.legend(handles=handles, loc='upper left')
+                    # ax_main.set_title(f'Time step {i} (different colors for different robots)', fontsize=16)
+                    # ax_main.set_title(f'Simulation for {len(env_eval_list)} robots (different colors for different robots)')
                     ### Legend - profile
                     leg_speed = Line2D([0], [0], color='blue', marker='None', linestyle='-', label='Speed')
                     leg_angular_speed = Line2D([0], [0], color='blue', marker='.', linestyle='dashed', label='Angular speed')
-                    ax_profile.legend(handles=[leg_speed, leg_angular_speed], loc='upper right')
-                    ax_profile.set_title('Motion profile (different colors for different robots)')
+                    if ax_profile is not None:
+                        ax_profile.legend(handles=[leg_speed, leg_angular_speed], loc='upper right')
+                        ax_profile.set_title('Motion profile (different colors for different robots)')
                     if ax_obsv is not None:
                         ax_obsv.set_title('Observation (from one robot)')
 
-                    # while True:
-                    #     if plt.waitforbuttonpress(timeout=0.1):
-                    #         break
+                    while True:
+                        if plt.waitforbuttonpress(timeout=0.1):
+                            break
                     if save:
                         # if doesn't exist, create the folder and file
                         if not os.path.exists(f'./src/results/{i}.png'):
                             os.makedirs(f'./src/results', exist_ok=True)
                         plt.savefig(f'./src/results/{i}.png')
 
-                    
-
-                if i == MAX_RUN_STEP - 1:
-                    done = True
-                    print('Time out!')
-                if done:
-                    if to_plot:
-                        input(f"Finish (Succeed: {info['success']})! Press enter to continue...")
+                if all(done_list):
                     break
 
+            if i == MAX_RUN_STEP - 1:
+                print(f'Time out!')
+                break
 
-            if to_plot:
-                plt.show()
+        if to_plot:
+            plt.show()
+
     print(f"Average time ({prt_decision_mode[decision_mode]}): {np.mean(time_list)}ms\n")
     return time_list
 
 if __name__ == '__main__':
+    import sys
     """
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     """
-    import sys
-
-    scene_option = 3 # 0 - empty, 1 - single obstacle, 2 - plus-shaped obstacle, 3 - 8 robots
-
+    ### 0 - empty,    1 - single obstacle,    2 - plus-shaped obstacle, 
+    ### 3 - 6 robots, 4 - Track crossing,     5 - Parallel tunnel
+    scene_option = 0
 
     save = False
+    map_only = False
 
-    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save=save)
-    # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=True, scene_option=scene_option, save=save)
-    # time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, scene_option=scene_option, save=save)
-    # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=True, scene_option=scene_option, save=save)
-    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, scene_option=scene_option, save=save)
+    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
     sys.exit()
 
     print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")

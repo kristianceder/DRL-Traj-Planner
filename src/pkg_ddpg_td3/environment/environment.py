@@ -312,7 +312,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         if ex_obsv is not None and len(ex_obsv.shape) == 3 and ex_obsv.dtype == np.uint8:
             img_obsv = True
 
-        if img_obsv and plot_obsv:
+        if img_obsv and plot_obsv and ax_obsv is not None:
             assert ex_obsv is not None
             ax_obsv.imshow(ex_obsv.transpose([1, 2, 0]))
 
@@ -325,21 +325,22 @@ class TrajectoryPlannerEnvironment(gym.Env):
         plot.line(ax_main, self.traversed_positions, c=theme_color, label="Past path")
 
         if drl_ref is not None:
-            ax_main.plot(np.array(drl_ref)[:, 0], np.array(drl_ref)[:, 1], "s-", c=theme_color, markerfacecolor='none', label="DRL reference")
+            ax_main.plot(np.array(drl_ref)[:, 0], np.array(drl_ref)[:, 1], "s", linestyle='none', c=theme_color, markerfacecolor='none', label="DRL reference")
         if original_ref is not None:
-            ax_main.plot(np.array(original_ref)[:, 0], np.array(original_ref)[:, 1], "o-", c=theme_color, markerfacecolor='none', label="Original reference")
+            ax_main.plot(np.array(original_ref)[:, 0], np.array(original_ref)[:, 1], "o", linestyle='none', c=theme_color, markerfacecolor='none', label="Original reference")
         if actual_ref is not None:
             ax_main.plot(np.array(actual_ref)[:, 0], np.array(actual_ref)[:, 1], "x-", c=theme_color, label="Actual reference")
         
-        if not img_obsv and not plot_map:
-            ax_main.set_xlim(self.boundary.vertices[:, 0].min(), self.boundary.vertices[:, 0].max())
-            ax_main.set_ylim(self.boundary.vertices[:, 1].min(), self.boundary.vertices[:, 1].max())
+        # if not img_obsv and not plot_map:
+        #     ax_main.set_xlim(self.boundary.vertices[:, 0].min(), self.boundary.vertices[:, 0].max())
+        #     ax_main.set_ylim(self.boundary.vertices[:, 1].min(), self.boundary.vertices[:, 1].max())
 
         if vis_component:
             for component in self.components:
                 component.render(ax_main)
 
         times = np.arange(len(self.speeds))
-        ax_profile.plot(times, self.speeds, '-', c=theme_color, label="Speed [m/s]")
-        ax_profile.plot(times, self.angular_velocities, '.--', c=theme_color, label="Angular velocity [rad/s]")
+        if ax_profile is not None:
+            ax_profile.plot(times, self.speeds, '-', c=theme_color, label="Speed [m/s]")
+            ax_profile.plot(times, self.angular_velocities, '.--', c=theme_color, label="Angular velocity [rad/s]")
         # ax_profile.legend(bbox_to_anchor=(0.5, 1.04), loc="lower center")

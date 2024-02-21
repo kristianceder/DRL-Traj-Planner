@@ -27,12 +27,12 @@ action_steps: 1  # How many steps should be taken from each mpc-solution. Range 
 
 # Penalty weights
 lin_vel_penalty: 0      # Cost for linear velocity control action (should be 0)
-lin_acc_penalty: 10.0   # Cost for linear acceleration 
+lin_acc_penalty: 1.0   # Cost for linear acceleration 
 ang_vel_penalty: 0      # Cost angular velocity control action
-ang_acc_penalty: 20.0   # Cost angular acceleration
-qrpd: 100.0             # Cost for reference path deviation
+ang_acc_penalty: 2.0   # Cost angular acceleration
+qrpd: 10.0             # Cost for reference path deviation
 qpos: 0.0               # Cost for position deviation each time step to the reference
-qvel: 10.0              # Cost for speed    deviation each time step to the reference
+qvel: 1.0              # Cost for speed    deviation each time step to the reference
 qtheta: 0.0             # Cost for heading  deviation each time step to the reference
 # Terminal weights
 qpN: 0.0                # Terminal cost; error relative to final reference position         
