@@ -361,8 +361,13 @@ def generate_map_scene_1(sub_index: int, scene_option: int) -> MapDescription:
         elif scene_option == 2:
             unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(10.0, 1.0), p2=(10.0, 9.0), freq=0.2, rx=0.8, ry=0.8, angle=0.0, corners=20)
             unexpected_obstacles.append(unexpected_obstacle)
+        elif scene_option == 3:
+            unexpected_obstacle = Obstacle.create_mpc_static([(7.2, 2.8), (7.2, 4.2), (8.8, 4.2), (8.8, 2.8)]) # medium
+            unexpected_obstacles.append(unexpected_obstacle)
+            unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(10.0, 1.0), p2=(10.0, 9.0), freq=0.2, rx=0.8, ry=0.8, angle=0.0, corners=20)
+            unexpected_obstacles.append(unexpected_obstacle)
         else:
-            raise ValueError(f"Invalid scene {sub_index} option, should be 1~2.")
+            raise ValueError(f"Invalid scene {sub_index} option, should be 1~3.")
     
     else:
         raise ValueError(f"Invalid scene index, should be 1~4.")

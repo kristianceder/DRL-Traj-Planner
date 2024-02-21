@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-#SBATCH -A C3SE2024-1-16                    # find your project with the "projinfo" command
+#SBATCH -A C3SE2024-1-13                    # find your project with the "projinfo" command
 #SBATCH -t 4-12:00:00                       # how long time it will take to run
 #SBATCH -n 32                               # Number of cores
 #SBATCH --gpus-per-node=T4:1                # choosing no. GPUs and their type
-#SBATCH -J drl-run16                    # the jobname
+#SBATCH -J v1-run1                    # the jobname
 
 module purge
 
@@ -11,8 +11,8 @@ REPO_NAME=DRL-Traj-Planner
 REPO_PATH=~/github/$REPO_NAME
 CONTAINER=src/pkg_ddpg_td3/training/container.sif
 TRAINING_SCRIPT=src/continous_training.py
-MODEL=0
-RUN=16
+MODEL=1
+RUN=1
 
 
 cp -r $REPO_PATH $TMPDIR

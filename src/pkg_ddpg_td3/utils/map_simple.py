@@ -78,9 +78,9 @@ def generate_simple_map_static2() -> MapDescription:
     """
     Generates a randomized map with one static obstacle
     """
-    start_x = 2.6 + random.uniform(-2,2)
+    start_x = 2.6 + random.uniform(-2,1)
     start_y = random.uniform(3,17)
-    goal_x = 37.5 + random.uniform(-2,2)
+    goal_x = 37.5 + random.uniform(-1,2)
     goal_y = random.uniform(3,17)
 
     init_state = np.array([start_x, start_y, random.uniform(-pi, pi), 0, 0])
@@ -156,7 +156,7 @@ def generate_simple_map_static4() -> MapDescription:
     Generates a randomized maze-like map
     """
 
-    init_state = np.array([random.uniform(0.6,2.4), random.uniform(0.6,19.4), random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([random.uniform(0.6,2), random.uniform(0.6,19.4), random.uniform(-pi, pi), 0, 0])
     robot = MobileRobot(init_state)
     boundary = Boundary([(0, 0), (25, 0), (25, 20), (0, 20)])
     obstacles = []
@@ -205,7 +205,7 @@ def generate_simple_map_static4() -> MapDescription:
         else:
             last_right = False
     
-    goal = Goal((23.4 + random.uniform(-1,1), random.uniform(0.6,19.4)))
+    goal = Goal((23.4 + random.uniform(0,1), random.uniform(0.6,19.4)))
     return robot, boundary, obstacles, goal
 
 

@@ -3,10 +3,10 @@ from .. import MapGenerator, MobileRobot
 from ..environment import TrajectoryPlannerEnvironment
 
 
-class TrajectoryPlannerEnvironmentImgsReward2(TrajectoryPlannerEnvironment):
+class TrajectoryPlannerEnvironmentImgsReward1(TrajectoryPlannerEnvironment):
     """
     Environment with what the associated report describes as image observations
-    and reward R_2
+    and reward R_1
     """
     def __init__(
         self,
@@ -22,12 +22,16 @@ class TrajectoryPlannerEnvironmentImgsReward2(TrajectoryPlannerEnvironment):
         image_center_x: float = 0.5,
         image_center_y: float = 0.3,
         image_angle: float = 0,
-        collision_reward_factor: float = 10,
-        cross_track_reward_factor: float = 0.1,
-        speed_reward_factor: float = 0.5,
+        collision_reward_factor: float = 4,
+        reach_goal_reward_factor: float = 3,
+        cross_track_reward_factor: float = 0.05,
         reference_speed: float = MobileRobot().cfg.SPEED_MAX * 0.8,
-        jerk_factor: float = 0.02,
-        angular_jerk_factor: float = 0.02,
+        path_progress_factor: float = 2,
+        acceleration_factor: float = 0.02,
+        angular_acceleration_factor: float = 0.02,
+        # jerk_factor: float = 0.02,
+        # angular_jerk_factor: float = 0.02,
+
     ):
         super().__init__(
             [
@@ -37,10 +41,14 @@ class TrajectoryPlannerEnvironmentImgsReward2(TrajectoryPlannerEnvironment):
                 ReferencePathCornerObservation(corner_samples),
                 ImageObservation(image_width, image_height, image_scale_x, image_scale_y, image_down_sample, image_center_x, image_center_y, image_angle),
                 CollisionReward(collision_reward_factor),
+                ReachGoalReward(reach_goal_reward_factor),
                 CrossTrackReward(cross_track_reward_factor),
-                SpeedReward(speed_reward_factor, reference_speed),
-                JerkReward(jerk_factor),
-                AngularJerkReward(angular_jerk_factor),
+                ExcessiveSpeedReward(2*path_progress_factor, reference_speed),
+                PathProgressReward(path_progress_factor),
+                AccelerationReward(acceleration_factor),
+                AngularAccelerationReward(angular_acceleration_factor),
+                # JerkReward(jerk_factor),
+                # AngularJerkReward(angular_jerk_factor),
             ],
             generate_map,
             time_step

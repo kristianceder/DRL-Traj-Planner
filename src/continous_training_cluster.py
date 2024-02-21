@@ -87,7 +87,7 @@ def run():
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])      #training on cluster
     index = 0                       #training local
-    run_vers = 12
+    run_vers = 16
     # Load a pre-trained model
     load_checkpoint = True
 
@@ -173,7 +173,7 @@ def run():
     scene_option = (1, 4, 1)
     # generate_map(*scene_option)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_static4)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -200,7 +200,7 @@ def run():
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=env_eval)
-        # plot_training_results(path)
+        plot_training_results(path)
 
         with no_grad():
             rew_list = []
@@ -212,9 +212,9 @@ def run():
                     action, _states = model.predict(obs, deterministic=True)
                     obs, reward, done, info = env_eval.step(action)
                     cum_ret += reward
-                    # if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
-                    #     # vec_env.render("human")
-                    #     env_eval.render()
+                    if i % 3 == 0: # Only render every third frame for performance (matplotlib is slow)
+                        # vec_env.render("human")
+                        env_eval.render()
                     if done:
                         # print(cum_ret)
                         rew_list.append(cum_ret)
