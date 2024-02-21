@@ -173,7 +173,7 @@ def run():
     scene_option = (1, 4, 1)
     # generate_map(*scene_option)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_static4)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_easy2)
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -200,11 +200,11 @@ def run():
 
     if load_checkpoint:
         model = Algorithm.load(f"{path}/best_model", env=env_eval)
-        plot_training_results(path)
+        # plot_training_results(path)
 
         with no_grad():
             rew_list = []
-            for j in tqdm.tqdm(range(64)):
+            for j in range(1):
                 obs = env_eval.reset()
                 
                 cum_ret = 0
@@ -216,7 +216,7 @@ def run():
                         # vec_env.render("human")
                         env_eval.render()
                     if done:
-                        # print(cum_ret)
+                        print(cum_ret)
                         rew_list.append(cum_ret)
                         break
             print(f'mean={sum(rew_list)/len(rew_list)}')

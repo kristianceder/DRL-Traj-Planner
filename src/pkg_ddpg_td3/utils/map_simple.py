@@ -52,6 +52,32 @@ def generate_simple_map_easy() -> MapDescription:
 
     return atr, boundary, obstacles, goal
 
+def generate_simple_map_easy2() -> MapDescription:
+    """
+    Generates a randomized map with many dynamic obstacles
+    """
+
+    init_state = np.array([5, 10, 0.0, 0, 0])
+    atr = MobileRobot(init_state)
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
+    obstacles = []
+    unexpected_obstacles = []
+    obstacles.append(Obstacle.create_mpc_static([(0, 0), (0, 9), (40, 9), (40, 0)]))
+    obstacles.append(Obstacle.create_mpc_static([(0, 20), (0, 14), (40, 14), (40, 20)]))
+    goal = Goal((35, 10))
+
+    
+    for i in [10,15,20,25,30]:
+        unexpected_obstacles.append(Obstacle.create_mpc_static([(i, 11), (i, 9), (i+2, 9), (i+2, 11)]))
+    for o in unexpected_obstacles:
+        o.visible_on_reference_path = False
+
+    # unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(35, 10), p2=(5, 10), freq=0.1, rx=0.8, ry=0.8, angle=0.0, corners=20)
+    # # unexpected_obstacle.visible_on_reference_path = False
+    # unexpected_obstacles.append(unexpected_obstacle)
+    obstacles.extend(unexpected_obstacles)
+    return atr, boundary, obstacles, goal
+
 def generate_simple_map_static1() -> MapDescription:
     """
     Generates a randomized map with one static obstacle
