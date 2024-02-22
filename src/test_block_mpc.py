@@ -16,8 +16,8 @@ from visualizer.mpc_plot import MpcPlotAfter
 
 ### Customize
 # CONFIG_FN = 'mpc_test.yaml'
-# CONFIG_FN = 'mpc_default.yaml' # max_solver_time: 0.1
-CONFIG_FN = 'mpc_longiter.yaml' # max_solver_time: 1.0
+CONFIG_FN = 'mpc_default.yaml' # max_solver_time: 0.1
+# CONFIG_FN = 'mpc_longiter.yaml' # max_solver_time: 1.0
 
 INIT_BUILD = True
 PLOT_INLOOP = False

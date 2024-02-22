@@ -294,12 +294,14 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, map_only=False, sce
                         other_robot_states = robot_manager.get_other_robot_states(robot_i)
                         traj_gen.update_other_robot_states(other_robot_states)
 
-                        original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref), extra_horizon=int(traj_gen.config.N_hor*2))
+                        original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref), extra_horizon=int(traj_gen.config.N_hor*1.5))
                         filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1.0) # decay=1 means no decay
                         other_robot_states_poly = [x for i, x in enumerate(robot_states_poly) if i != robot_i]
-                        if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly+other_robot_states_poly):
+                        if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list, dyn_obstacle_list_poly+other_robot_states_poly):
                             chosen_ref_traj = filtered_ref_traj
                         else:
+                            chosen_ref_traj = original_ref_traj
+                        if done_list[robot_i]:
                             chosen_ref_traj = original_ref_traj
                         timer_mpc = PieceTimer()
                         try:
@@ -449,9 +451,9 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, map_only=False, sce
                     if ax_obsv is not None:
                         ax_obsv.set_title('Observation (from one robot)')
 
-                    while True:
-                        if plt.waitforbuttonpress(timeout=0.1):
-                            break
+                    # while True:
+                    #     if plt.waitforbuttonpress(timeout=0.1):
+                    #         break
                     if save:
                         # if doesn't exist, create the folder and file
                         if not os.path.exists(f'./src/results/{i}.png'):
@@ -479,16 +481,16 @@ if __name__ == '__main__':
     """
     ### 0 - empty,    1 - single obstacle,    2 - plus-shaped obstacle, 
     ### 3 - 6 robots, 4 - Track crossing,     5 - Parallel tunnel
-    scene_option = 0
+    scene_option = 5
 
     save = False
     map_only = False
 
     # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
     # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
     # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    # time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
     sys.exit()
 
     print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")

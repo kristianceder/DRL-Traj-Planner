@@ -33,16 +33,30 @@ class HintSwitcher:
         self.switch_on = False
         self.always_on = always_on
 
-    def switch(self, current_position: tuple, original_traj: List[tuple], new_traj: List[tuple], obstacle_list: List[List[tuple]]) -> bool:
+    def switch(self, current_position: tuple, original_traj: List[tuple], new_traj: List[tuple], static_obstacle_list: List[List[tuple]], other_obstacle_list: List[List[tuple]]) -> bool:
         if self.always_on:
             return True
         cnt_flag = False
         for i, old_pos in enumerate(original_traj):
             new_pos = new_traj[i] if i < len(new_traj) else new_traj[-1]
-            for obstacle in obstacle_list:
+            for obstacle in static_obstacle_list:
                 shapely_obstacle = Polygon(obstacle)
                 dist = shapely_obstacle.distance(Point(current_position))
-                if shapely_obstacle.contains(Point(old_pos[:2])): # or shapely_obstacle.contains(Point(new_pos[:2])):
+                if shapely_obstacle.contains(Point(old_pos[:2])):
+                    if (dist < self.switch_distance) & (self.switch_on == False):
+                            self.switch_on = True
+                            return self.switch_on
+                elif (dist > self.detach_distance) & (self.switch_on == True):
+                    if self.detach_cnt > self.detach_steps:
+                        self.switch_on = False
+                        self.detach_cnt = 0
+                    elif cnt_flag == False:
+                        self.detach_cnt += 1
+                        cnt_flag = True
+            for obstacle in other_obstacle_list:
+                shapely_obstacle = Polygon(obstacle)
+                dist = shapely_obstacle.distance(Point(current_position))
+                if shapely_obstacle.contains(Point(old_pos[:2])) or shapely_obstacle.contains(Point(new_pos[:2])):
                     if (dist < self.switch_distance) & (self.switch_on == False):
                             self.switch_on = True
                             return self.switch_on
