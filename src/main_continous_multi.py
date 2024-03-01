@@ -380,6 +380,9 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, map_only=False, sce
                     
                     obsv_list[robot_i] = obsv
 
+                    if not to_plot:
+                        print(f"Step {i}.")
+
                     if decision_mode == 0:
                         time_list.append(last_mpc_time)
                         if to_plot:
@@ -438,6 +441,8 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, map_only=False, sce
                         handles.append(leg_rl_ref)
                     if map_only:
                         ax_main.legend(handles=handles, loc='upper left', prop={'size': 16}, ncol=3)
+                        ax_main.set_xticks([])
+                        ax_main.set_yticks([])
                     else:
                         ax_main.legend(handles=handles, loc='upper left')
                     # ax_main.set_title(f'Time step {i} (different colors for different robots)', fontsize=16)
@@ -484,13 +489,14 @@ if __name__ == '__main__':
     scene_option = 5
 
     save = False
+    to_plot = True
     map_only = False
 
-    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    # time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
-    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=to_plot, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=to_plot, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=to_plot, map_only=map_only, scene_option=scene_option, save=save)
+    # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=to_plot, map_only=map_only, scene_option=scene_option, save=save)
+    time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=to_plot, map_only=map_only, scene_option=scene_option, save=save)
     sys.exit()
 
     print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")

@@ -9,9 +9,9 @@ data_mpc_s2 = [96, 101, 110, 123, 136, 145, 149, 167, 199, 160] # fail: 0
 data_ddpg_s2 = [151, 128, 135, 170, 153, 150, 143, 125, 128, 178] # fail: 0
 data_hyb_s2 = [58, 59, 61, 63, 58, 58, 62, 59, 59, 63] # fail: 0
 
-data_mpc_s3 = [75, 75, 113, 72, 123, 71, 72, 71, 70, 70] # fail: 1
-data_ddpg_s3 = [142, 143, 155, 153, 161, 153, 142, 146, 142, 155] # fail: 0
-data_hyb_s3 = [85, 98, 86, 132, 92, 134, 147, 118, 91, 92] # fail: 1
+data_mpc_s3 = [0.0, 0.0] # fail: 10
+data_ddpg_s3 = [142, 144, 141, 142, 141, 145, 144, 141, 141, 145] # fail: 0
+data_hyb_s3 = [75, 77, 77, 79, 78, 85, 77, 75, 94, 75] # fail: 0
 
 n_bar_per_category = 3
 bar_width = 0.5
@@ -48,7 +48,7 @@ ax.plot([ddpg_index[2]]*len(data_ddpg_s3), data_ddpg_s3, '.', color='black')
 ax.plot([hyb_index[2]]*len(data_hyb_s3), data_hyb_s3, '.', color='black')
 
 ax.set_xticks(ddpg_index)
-ax.set_xticklabels(['Scene 1', 'Scene 2', 'Scene 3'], fontsize=16)
+ax.set_xticklabels(['Scene 3', 'Scene 4', 'Scene 5'], fontsize=16)
 ax.set_ylabel('Final step', fontsize=16)
 ax.tick_params(axis='y', labelsize=16)
 

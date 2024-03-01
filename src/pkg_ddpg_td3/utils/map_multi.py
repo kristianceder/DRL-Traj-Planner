@@ -50,7 +50,7 @@ def generate_map_scene_1() -> List[MapDescription]:
     goal_4 = Goal((0.0, 10.0))
 
     scene_boundary = Boundary([(-5.0, -5.0), (-5.0, 15.0), (15.0, 15.0), (15.0, -5.0)])
-    scene_obstacles_list = [[(4.0, 4.0), (4.0, 6.0), (6.0, 6.0), (6.0, 4.0)]]
+    scene_obstacles_list = [[(5.0, 3.5), (6.5, 5.0), (5.0, 6.5), (3.5, 5.0)]]
     scene_obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in scene_obstacles_list]
 
     unexpected_obstacles = scene_obstacles
