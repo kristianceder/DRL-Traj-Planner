@@ -1,38 +1,28 @@
-# DDPG-Boosted MPC for Collision-Free Navigation of Multiple Mobile Robots
+# DDPG-Boosted MPC for Collision-Free Navigation of Multiple Mobile Robots (Multi-Robot Branch)
 *Collision-Free Trajectory Planning of Mobile Robots by Integrating
 Deep Reinforcement Learning and Model Predictive Control*
 
-![Example](doc/cover.png "Example")
+![Example](doc/multi_cover.png "Example")
 
 ## Quick Start
-### OpEn
-The NMPC formulation is solved using open source implementation of PANOC, namely [OpEn](https://alphaville.github.io/optimization-engine/). Follow the [installation instructions](https://alphaville.github.io/optimization-engine/docs/installation) before proceeding. 
-
-### Install dependencies (after installing OpEn)
-```
-pip install -r requirements.txt
-```
-or
-```
-conda env create -f environment.yaml
-```
-**NOTE** If you cannot create the virtual environment via conda, please create your own virtual environment (e.g. conda create -n rlboost python=3.9), and pip install.
-Make sure your RUST is up-to-date and Pytorch is compatible with Cuda. 
+Please set up OpEn (Rust-based) and install the dependencies before running the code. For details, go to the main branch of the repository.
 
 ### Generate MPC solver
 Go to "test_block_mpc.py", change **INIT_BUILD** to true and run
 ```
 python test_block_mpc.py
 ```
-After this, a new directory *mpc_build* will appear and contain the solver. Then, you are good to go :)
+After this, a new directory *mpc_solver* will appear and contain the solver. Then, you are good to go :)
 
-### To train the DQN
-Go to "test_block_rl.py", change **TO_TRAIN** and **TO_SAVE** to true and run.
+### To train the DRL agent
+For the training of the DRL agent, since we use distributed training, it is the same as the single-robot (main) branch. Please refer to the main branch for the training.
 
 ## Use Case
-Run *main.py* for the simulation in Python. Several cases are available by changing ```scene_option``` in *main.py*.
+Run *main_continous_multi.py* for the simulation in Python. Several cases are available in the entrance of the file.
 
-## 
+## License
+Go to the main branch for the license.
+
 
 
 
