@@ -252,6 +252,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
         plot.robot(self.axes[0], self.agent)
         plot.line(self.axes[0], self.traversed_positions, "b") #, label="Past path")
 
+        size = 18
+
         if dqn_ref is not None:
             self.axes[0].plot(np.array(dqn_ref)[:, 0], np.array(dqn_ref)[:, 1], "mo-", markerfacecolor='none', label="DRL reference")
         if original_ref is not None:
@@ -262,13 +264,13 @@ class TrajectoryPlannerEnvironment(gym.Env):
         for component in self.components:
             component.render(self.axes[0])
 
-        self.axes[0].legend(bbox_to_anchor=(0.5, 1.04), loc="lower center")
+        self.axes[0].legend(bbox_to_anchor=(0.5, 1.04), loc="lower center",prop={'size': size})
         self.axes[0].set_aspect('equal')
 
         times = np.arange(len(self.speeds))
         self.axes[1].plot(times, self.speeds, label="Speed [m/s]")
         self.axes[1].plot(times, self.angular_velocities, label="Angular velocity [rad/s]")
-        self.axes[1].legend(bbox_to_anchor=(0.5, 1.04), loc="lower center")
+        self.axes[1].legend(bbox_to_anchor=(0.5, 1.04), loc="lower center",prop={'size': size})
        
         
 

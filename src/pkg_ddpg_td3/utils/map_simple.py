@@ -21,34 +21,34 @@ def generate_simple_map_easy() -> MapDescription:
     """
     Generates a randomized map with many dynamic obstacles
     """
-    direction = np.random.choice(['N','E','S','W'])
-    if direction == 'N':
-        x_init =        random.uniform(1,19)
-        y_init = 2 +    random.uniform(-1,1)
-        x_goal =        random.uniform(1,19)
-        y_goal = 18 +   random.uniform(-1,1)
-    elif direction == 'E':
-        x_init = 2 +    random.uniform(-1,1)
-        y_init =        random.uniform(1,19)
-        x_goal = 18 +   random.uniform(-1,1)
-        y_goal =        random.uniform(1,19)
-    elif direction == 'S':
-        x_init =        random.uniform(1,19)
-        y_init = 18 +   random.uniform(-1,1)
-        x_goal =        random.uniform(1,19)
-        y_goal = 2 +    random.uniform(-1,1)
-    else:
-        x_init = 18 +   random.uniform(-1,1)
-        y_init =        random.uniform(1,19)
-        x_goal = 2 +    random.uniform(-1,1)
-        y_goal =        random.uniform(1,19)
+    # direction = np.random.choice(['N','E','S','W'])
+    # if direction == 'N':
+    #     x_init =        random.uniform(1,19)
+    #     y_init = 2 +    random.uniform(-1,1)
+    #     x_goal =        random.uniform(1,19)
+    #     y_goal = 18 +   random.uniform(-1,1)
+    # elif direction == 'E':
+    #     x_init = 2 +    random.uniform(-1,1)
+    #     y_init =        random.uniform(1,19)
+    #     x_goal = 18 +   random.uniform(-1,1)
+    #     y_goal =        random.uniform(1,19)
+    # elif direction == 'S':
+    #     x_init =        random.uniform(1,19)
+    #     y_init = 18 +   random.uniform(-1,1)
+    #     x_goal =        random.uniform(1,19)
+    #     y_goal = 2 +    random.uniform(-1,1)
+    # else:
+    #     x_init = 18 +   random.uniform(-1,1)
+    #     y_init =        random.uniform(1,19)
+    #     x_goal = 2 +    random.uniform(-1,1)
+    #     y_goal =        random.uniform(1,19)
     
-    init_state = np.array([x_init, y_init, random.uniform(-pi, pi), 0, 0])
+    init_state = np.array([1, 1, 0.0, 0, 0])
     atr = MobileRobot(init_state)
     boundary = Boundary([(0, 0), (20, 0), (20, 20), (0, 20)])
     obstacles = []
 
-    goal = Goal((x_goal, y_goal))
+    goal = Goal((19, 19))
 
     return atr, boundary, obstacles, goal
 

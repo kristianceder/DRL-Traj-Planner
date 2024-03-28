@@ -170,7 +170,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
 
                 elif decision_mode == 1:
                     traj_gen.set_current_state(env_eval.agent.state)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
                     action_index, _states = ddpg_model.predict(obsv, deterministic=True)
@@ -211,13 +211,20 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     
                     if dyn_obstacle_list:
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
+                    original_ref_traj, rl_ref_traj,extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref),20)
                     filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
-                    if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
+                    # if extra_ref_traj.any() == None:
+                    if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
                         chosen_ref_traj = filtered_ref_traj
                     else:
                         chosen_ref_traj = original_ref_traj
                     timer_mpc = PieceTimer()
+                    # else:
+                    #     if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
+                    #         chosen_ref_traj = filtered_ref_traj
+                    #     else:
+                    #         chosen_ref_traj = original_ref_traj
+                    #     timer_mpc = PieceTimer()
                     try:
                         mpc_output = traj_gen.get_action(chosen_ref_traj) # MPC computes the action
                     except Exception as e:
@@ -347,9 +354,9 @@ if __name__ == '__main__':
     num_trials = 50 # 50
     print_latex = True
     scene_option_list = [
-                         (1, 1, 2), # a-medium
+                        #  (1, 1, 2), # a-medium
                         #  (1, 1, 3), # b-large
-                        #  (1, 2, 1), # c-small
+                         (1, 2, 1), # c-small
                         #  (1, 2, 2), # d-large
                         #  (1, 3, 1), # e-small
                         #  (1, 3, 2), # f-large

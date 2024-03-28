@@ -30,7 +30,7 @@ from typing import Callable
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from pkg_ddpg_td3.utils.per_td3 import PerTD3
 
-from main_pre_continous import generate_map
+# from main_pre_continous import generate_map
 
 import tqdm
 def generate_map() -> MapDescription:
@@ -87,7 +87,7 @@ def run():
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])      #training on cluster
     index = 0                       #training local
-    run_vers = 16
+    run_vers = 13
     # Load a pre-trained model
     load_checkpoint = True
 
@@ -170,10 +170,10 @@ def run():
     # decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     # """
 
-    scene_option = (1, 4, 1)
+    scene_option = (1, 1, 2)
     # generate_map(*scene_option)
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_simple_map_easy2)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_map_mpc(11))
     vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_simple_map_static})
     # check_env(vec_env)
@@ -216,8 +216,10 @@ def run():
                         # vec_env.render("human")
                         env_eval.render()
                     if done:
+                        # print(cum_ret)
                         print(cum_ret)
                         rew_list.append(cum_ret)
+                        env_eval.reset()
                         break
             print(f'mean={sum(rew_list)/len(rew_list)}')
     

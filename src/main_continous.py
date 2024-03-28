@@ -153,7 +153,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
 
                     if dyn_obstacle_list:
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj()
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj()
                     chosen_ref_traj = original_ref_traj
                     timer_mpc = PieceTimer()
                     try:
@@ -169,7 +169,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
 
                 elif decision_mode == 1:
                     traj_gen.set_current_state(env_eval.agent.state)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
                     action_index, _states = ddpg_model.predict(obsv, deterministic=True)
@@ -219,9 +219,9 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
                     if dyn_obstacle_list:
                         # traj_gen.update_dynamic_constraints([dyn_obstacle_tmp*20])
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
+                    original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref),20)
                     filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
-                    if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
+                    if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
                         chosen_ref_traj = filtered_ref_traj
                     else:
                         chosen_ref_traj = original_ref_traj
@@ -324,27 +324,27 @@ if __name__ == '__main__':
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     """
-    scene_option = (1, 4, 1)
+    scene_option = (1, 3, 2)
 
-    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save_num=1) # Eval MPC using main.py
-    # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=2)
+    time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save_num=1) # Eval MPC using main.py
+    time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=2)
     time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, scene_option=scene_option, save_num=3)
-    # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=4)
+    time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=4)
     time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, scene_option=scene_option, save_num=5)
 
-    # print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")
+    print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")
 
-    # fig, axes = plt.subplots(1,2)
+    fig, axes = plt.subplots(1,2)
 
-    # bin_list = np.arange(0, 150, 10)
-    # axes[0].hist(time_list_lid, bins=bin_list, color='r', alpha=0.5, label='DDPG')
-    # axes[0].hist(time_list_mpc, bins=bin_list, color='b', alpha=0.5, label='MPC')
-    # axes[0].hist(time_list_hyb_lid, bins=bin_list, color='g', alpha=0.5, label='HYB')
-    # axes[0].legend()
+    bin_list = np.arange(0, 150, 10)
+    axes[0].hist(time_list_lid, bins=bin_list, color='r', alpha=0.5, label='DDPG')
+    axes[0].hist(time_list_mpc, bins=bin_list, color='b', alpha=0.5, label='MPC')
+    axes[0].hist(time_list_hyb_lid, bins=bin_list, color='g', alpha=0.5, label='HYB')
+    axes[0].legend()
 
-    # axes[1].plot(time_list_lid, color='r', ls='-', marker='x', label='DDPG')
-    # axes[1].plot(time_list_mpc, color='b', ls='-', marker='x', label='MPC')
-    # axes[1].plot(time_list_hyb_lid, color='g', ls='-', marker='x', label='HYB')
+    axes[1].plot(time_list_lid, color='r', ls='-', marker='x', label='DDPG')
+    axes[1].plot(time_list_mpc, color='b', ls='-', marker='x', label='MPC')
+    axes[1].plot(time_list_hyb_lid, color='g', ls='-', marker='x', label='HYB')
 
-    # plt.show()
-    # input('Press enter to exit...')
+    plt.show()
+    input('Press enter to exit...')

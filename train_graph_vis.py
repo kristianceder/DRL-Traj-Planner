@@ -8,7 +8,7 @@ def moving_average(x, w):
 # Step 1: Read the text document
 # runs = [1,2,4,5,6,8]
 # runs = [5,6]
-runs = [10,11,12]
+runs = [21]
 # runs = [9,10,11]
 numbers = {}
 for run in runs:

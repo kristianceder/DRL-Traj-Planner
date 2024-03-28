@@ -51,15 +51,14 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
 
 def run():
     
-    # Selects which predefined agent model to use
-    # index = int(sys.argv[1])    #training on cluster
-    index = 2                   #training local
+    # Selects which model variant to use
+    index = 0                   
     
     # Load a pre-trained model
-    load_checkpoint = True
+    load_checkpoint = False
 
     # Select the path where the model should be stored
-    path = f'./Model/testing/variant-{index}'
+    path = f'./Model/local_training/variant-{index}'
     # path = './Model/td3/image'
     # path = './Model/td3/ray'
     # path = './Model/ddpg/image'
@@ -132,8 +131,8 @@ def run():
     
 
     env_eval = gym.make(variant['env_name'], generate_map=generate_map_eval)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]

@@ -3,5 +3,6 @@
 *.pyo
 *.png
 *.sif
+*.avi
 .vscode/
 mpc_solver/*

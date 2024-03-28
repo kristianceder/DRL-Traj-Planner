@@ -34,7 +34,7 @@ class HintSwitcher:
 
     def switch(self, current_position: tuple, original_traj: List[tuple], new_traj: List[tuple], obstacle_list: List[List[tuple]]) -> bool:
         cnt_flag = False
-        for old_pos, new_pos in zip(original_traj, new_traj):
+        for i, old_pos in enumerate(original_traj):
             for obstacle in obstacle_list:
                 shapely_obstacle = Polygon(obstacle)
                 dist = shapely_obstacle.distance(Point(current_position))
@@ -80,7 +80,8 @@ class Metrics:
         dd = print_data["deviation_distance"]
         smooth = print_data["smoothness"]
 
-        return f"&  & {self.mode} & {ct[0]} & {ct[1]} & {ct[2]} & {dd[0]} & {dd[1]} & {smooth[0]} & {smooth[1]} & {print_data['clearance']} & {int(print_data['finish_time'])} & {int(print_data['success_rate']*100)} \\\\"
+        return f"&  & \\textbf{{ {self.mode} }} & {ct[0]} & {ct[1]} & {ct[2]} & {dd[0]} & {dd[1]} & {smooth[0]} & {smooth[1]} & {int(print_data['finish_time'])} & {int(print_data['success_rate']*100)} \\\\ % OK run13 var"
+
 
     def get_average(self, round_digit:int=4) -> dict:
         self.metric_average = {}
@@ -124,7 +125,7 @@ class Metrics:
         self._get_success_rate()
 
     def _get_computation_time(self, computation_time_list):
-        return [statistics.mean(computation_time_list), max(computation_time_list), statistics.median(computation_time_list)]
+        return [statistics.mean(computation_time_list), max(computation_time_list), statistics.variance(computation_time_list)]
     
     def _get_deviation_distance(self, ref_traj: List[tuple], actual_traj: List[tuple]):
         deviation_dists = []

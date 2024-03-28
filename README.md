@@ -1,8 +1,9 @@
 # DDPG-Boosted MPC for Collision-Free Navigation of Multiple Mobile Robots
-*Collision-Free Trajectory Planning of Mobile Robots by Integrating
-Deep Reinforcement Learning and Model Predictive Control*
+*Trajectory Planning of Multiple Robots using Vision-Based Continuous Deep Reinforcement Learning and Model Predictive Control*
 
-![Example](doc/cover.png "Example")
+![Example](doc/cover.jpg "Example")
+
+The main branch of this repository is the single robot implementation of our paper. The multiple robot implementation is in a separate branch in the repository.
 
 ## Quick Start
 ### OpEn
@@ -26,11 +27,16 @@ python test_block_mpc.py
 ```
 After this, a new directory *mpc_build* will appear and contain the solver. Then, you are good to go :)
 
-### To train the DQN
-Go to "test_block_rl.py", change **TO_TRAIN** and **TO_SAVE** to true and run.
+### To train the DDPG
+Go to "src/continous_training_local.py", change **load_checkpoint** to False and run.
 
 ## Use Case
-Run *main.py* for the simulation in Python. Several cases are available by changing ```scene_option``` in *main.py*.
+Run *src/main_continous.py* for the simulation in Python. Several cases are available by changing ```scene_option``` in *src/main_continous.py*.
+
+## Evaluation videos
+Videos of the evaluations are available on [youtube](https://www.youtube.com/watch?v=A2TAuWXqH2k&list=PLPOBQOuy0QPRkYZ1olWVMvoB_gpyaQp5T)
+
+
 
 ## 
 

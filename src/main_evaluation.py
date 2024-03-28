@@ -145,7 +145,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
 
                 if decision_mode == 0:
                     traj_gen.set_current_state(env_eval.agent.state)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
                     action_index, _states = model.predict(obsv, deterministic=True)
@@ -165,7 +165,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
 
                     if dyn_obstacle_list:
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj()
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj()
                     chosen_ref_traj = original_ref_traj
                     timer_mpc = PieceTimer()
                     try:
@@ -207,9 +207,9 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     if dyn_obstacle_list:
                         # traj_gen.update_dynamic_constraints([dyn_obstacle_tmp*20])
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
+                    original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref),extra_horizon=20)
                     filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
-                    if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
+                    if switch.switch(traj_gen.state[:2], extra_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
                         chosen_ref_traj = filtered_ref_traj
                     else:
                         chosen_ref_traj = original_ref_traj
@@ -301,8 +301,23 @@ if __name__ == '__main__':
                     (2, 1, 1), # MPC cant handle
                     (2, 1, 2), 
                     (2, 1, 3), # MPC cant handle
-                    ][8]
+                    ][2]
 
+
+
+    # scene_option_list = [
+    #                 #  (1, 1, 2), # a-medium
+    #                 #  (1, 1, 3), # b-large
+    #                 #  (1, 2, 1), # c-small
+    #                 #  (1, 2, 2), # d-large                         # MPC cant handle
+    #                 #  (1, 3, 1), # e-small                         # MPC cant handle
+    #                 #  (1, 3, 2), # f-large                         # MPC cant handle
+    #                 #  (1, 4, 1), # face-to-face
+    #                 #  (2, 1, 1), # right turn with an obstacle     # MPC cant handle
+    #                 #  (2, 1, 2), # sharp turn with an obstacle
+    #                 # (2, 1, 3), # u-turn with an obstacle        # MPC cant handle
+    #                     ]
+    
     rl_index = 1
     num_trials = 50
     # scene_option = (1, 1, 2)
@@ -316,29 +331,29 @@ if __name__ == '__main__':
 
     for i in range(num_trials):
         print(f"Trial {i+1}/{num_trials}")
-        mpc_metrics = main_evaluate(rl_index=1, decision_mode=1, metrics=mpc_metrics, scene_option=scene_option)
+        # mpc_metrics = main_evaluate(rl_index=1, decision_mode=1, metrics=mpc_metrics, scene_option=scene_option)
         # dqn_lid_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=dqn_lid_metrics, scene_option=scene_option)
-        # dqn_img_metrics = main_evaluate(rl_index=0, decision_mode=0, metrics=dqn_img_metrics, scene_option=scene_option)
+        dqn_img_metrics = main_evaluate(rl_index=0, decision_mode=0, metrics=dqn_img_metrics, scene_option=scene_option)
         # hyb_lid_metrics = main_evaluate(rl_index=1, decision_mode=2, metrics=hyb_lid_metrics, scene_option=scene_option)
-        # hyb_img_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=hyb_img_metrics, scene_option=scene_option)
+        hyb_img_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=hyb_img_metrics, scene_option=scene_option)
 
     round_digits = 2
     print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
-    print(mpc_metrics.get_average(round_digits))
-    print()
+    # print(mpc_metrics.get_average(round_digits))
+    # print()
     # print(dqn_lid_metrics.get_average(round_digits))
     # print()
-    # print(dqn_img_metrics.get_average(round_digits))
-    # print()
+    print(dqn_img_metrics.get_average(round_digits))
+    print()
     # print(hyb_lid_metrics.get_average(round_digits))
     # print()
-    # print(hyb_img_metrics.get_average(round_digits))
-    # print('='*50)
+    print(hyb_img_metrics.get_average(round_digits))
+    print('='*50)
 
     if print_latex:
         print(f"%=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
-        print(mpc_metrics.write_latex(round_digits))
-        # print(dqn_img_metrics.write_latex(round_digits))
-        # print(hyb_img_metrics.write_latex(round_digits))
+        # print(mpc_metrics.write_latex(round_digits))
+        print(dqn_img_metrics.write_latex(round_digits))
+        print(hyb_img_metrics.write_latex(round_digits))
 
 
