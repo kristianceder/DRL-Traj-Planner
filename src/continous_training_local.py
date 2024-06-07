@@ -52,15 +52,15 @@ def linear_schedule(initial_value: float) -> Callable[[float], float]:
 def run():
     
     # Selects which model variant to use
-    index = 0                   
+    index = 6                   
     
     # Load a pre-trained model
-    load_checkpoint = False
+    load_checkpoint = True
 
     # Select the path where the model should be stored
-    path = f'./Model/local_training/variant-{index}'
+    # path = f'./Model/local_training/variant-{index}'
     # path = './Model/td3/image'
-    # path = './Model/td3/ray'
+    path = './Model/td3/ray'
     # path = './Model/ddpg/image'
     # path = './Model/ddpg/ray'
     

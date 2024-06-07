@@ -184,7 +184,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
 
                 elif decision_mode == 2:
                     traj_gen.set_current_state(env_eval.agent.state)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
                     action_index, _states = td3_model.predict(obsv, deterministic=True)
@@ -262,7 +262,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
                     if dyn_obstacle_list:
                         # traj_gen.update_dynamic_constraints([dyn_obstacle_tmp*20])
                         traj_gen.update_dynamic_constraints(dyn_obstacle_pred_list)
-                    original_ref_traj, rl_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
+                    original_ref_traj, rl_ref_traj, extra_ref_traj = traj_gen.get_local_ref_traj(np.array(rl_ref))
                     filtered_ref_traj = ref_traj_filter(original_ref_traj, rl_ref_traj, decay=1) # decay=1 means no decay
                     if switch.switch(traj_gen.state[:2], original_ref_traj.tolist(), filtered_ref_traj.tolist(), geo_map.processed_obstacle_list+dyn_obstacle_list_poly):
                         chosen_ref_traj = filtered_ref_traj
@@ -326,10 +326,10 @@ if __name__ == '__main__':
     """
     scene_option = (1, 3, 2)
 
-    time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save_num=1) # Eval MPC using main.py
-    time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=2)
-    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, scene_option=scene_option, save_num=3)
-    time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=4)
+    time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=False, scene_option=scene_option, save_num=1) # Eval MPC using main.py
+    time_list_lid     = main(rl_index=1,    decision_mode=2,  to_plot=True, scene_option=scene_option, save_num=2)
+    time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=3)
+    time_list_hyb_lid = main(rl_index=1,    decision_mode=4,  to_plot=True, scene_option=scene_option, save_num=4)
     time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, scene_option=scene_option, save_num=5)
 
     print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")
