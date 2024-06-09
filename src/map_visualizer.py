@@ -5,6 +5,7 @@ import numpy as np
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
 # from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_static1
 from pkg_ddpg_td3.utils.map_simple import *
+from pkg_ddpg_td3.utils.map_eval import *
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
 from main_pre_continous import generate_map
 
@@ -93,7 +94,7 @@ def run():
                          (2, 1, 3),
                          ][3]
     #generate_map(*scene_option_list)
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_maps)
     while True:
         env_eval.reset()
         # env_eval.step(np.array([0,0]))

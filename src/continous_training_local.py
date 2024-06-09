@@ -21,6 +21,7 @@ from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
+from pkg_ddpg_td3.utils.map_eval import generate_eval_maps
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from typing import Callable
@@ -53,7 +54,7 @@ def run():
     
     # Selects which predefined agent model to use
     # index = int(sys.argv[1])    #training on cluster
-    index = 2                   #training local
+    index = 6                   #training local
     
     # Load a pre-trained model
     load_checkpoint = True
@@ -113,7 +114,7 @@ def run():
         {
             'algorithm' : "TD3",
             'env_name': 'TrajectoryPlannerEnvironmentRaysReward1-v0',
-            'net_arch': [16, 16],
+            'net_arch': [400, 300],
             'per': True,
             'device': 'cpu',
         },
@@ -126,14 +127,14 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 10e4
+    tot_timesteps = 50e5
     n_cpu = 20
     
     
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_map_eval)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_map_eval})
+    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_maps)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_maps})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_maps})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]
@@ -177,13 +178,13 @@ def run():
         model = Algorithm("MultiInputPolicy",
                     vec_env, 
                     # learning_rate=linear_schedule(0.0001),
-                    learning_rate=0.0001, 
-                    buffer_size=int(1e6), 
-                    learning_starts=100_000, gamma=0.98,
-                    gradient_steps=-1,
-                    action_noise = action_noise,
+                    # learning_rate=0.0001, 
+                    # buffer_size=int(1e6), 
+                    # learning_starts=100, gamma=0.99,
+                    # gradient_steps=-1,
+                    # action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
-                    verbose=1,
+                    verbose=0,
                     device=variant['device'],
                 )
 
