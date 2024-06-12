@@ -259,8 +259,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
         if actual_ref is not None:
             self.axes[0].plot(np.array(actual_ref)[:, 0], np.array(actual_ref)[:, 1], "gx-", label="Actual reference")
 
-        for component in self.components:
-            component.render(self.axes[0])
+        # for component in self.components:
+        #     component.render(self.axes[0])
 
         self.axes[0].legend(bbox_to_anchor=(0.5, 1.04), loc="lower center")
         self.axes[0].set_aspect('equal')

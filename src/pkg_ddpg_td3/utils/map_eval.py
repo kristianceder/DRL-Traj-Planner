@@ -25,11 +25,11 @@ def generate_eval_map111() -> MapDescription:
     boundary = Boundary([(0.0, 0.0), (16.0, 0.0), (16.0, 10.0), (0.0, 10.0)])
     obstacles = []
     unexpected_obstacles = []
-    scene_1_obstacles_list = [[(0.0, 1.5), (0.0, 1.6), (9.0, 1.6), (9.0, 1.5)],
-                            [(0.0, 8.4), (0.0, 8.5), (9.0, 8.5), (9.0, 8.4)],
-                            [(11.0, 1.5), (11.0, 1.6), (16.0, 1.6), (16.0, 1.5)],
-                            [(11.0, 8.4), (11.0, 8.5), (16.0, 8.5), (16.0, 8.4)],]
-    obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in scene_1_obstacles_list]
+    #scene_1_obstacles_list = [[(0.0, 1.5), (0.0, 1.6), (9.0, 1.6), (9.0, 1.5)],
+    #                        [(0.0, 8.4), (0.0, 8.5), (9.0, 8.5), (9.0, 8.4)],
+    #                        [(11.0, 1.5), (11.0, 1.6), (16.0, 1.6), (16.0, 1.5)],
+    #                        [(11.0, 8.4), (11.0, 8.5), (16.0, 8.5), (16.0, 8.4)],]
+    #obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in scene_1_obstacles_list]
     goal = Goal((15.4, 3.5))
 
     unexpected_obstacle = Obstacle.create_mpc_static([(7.5, 3.0), (7.5, 4.0), (8.5, 4.0), (8.5, 3.0)]) # small
