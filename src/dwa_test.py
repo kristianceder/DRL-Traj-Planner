@@ -20,7 +20,7 @@ import statistics
 from pkg_ddpg_td3.utils.map import generate_map_eval
 from pkg_ddpg_td3.utils.map_simple import *
 from pkg_ddpg_td3.inference_model import inference_model
-from pkg_ddpg_td3.utils.map_eval import generate_eval_map111
+from pkg_ddpg_td3.utils.map_eval import generate_eval_map111, generate_eval_map111x, generate_eval_map111y
 
 def dwa_control(x, config, goal, ob,rl_boost=False,rl_action=None):
     """
@@ -37,6 +37,9 @@ def dwa_control(x, config, goal, ob,rl_boost=False,rl_action=None):
 
     return u, trajectory, last_dwa_time
 
+# var = "111"
+# var = "111x"
+var = "111y"
 
 class Config:
     """
@@ -66,25 +69,43 @@ class Config:
         # if robot_type == RobotType.rectangle
         self.robot_width = 0.5  # [m] for collision check
         self.robot_length = 1.2  # [m] for collision check
-        # obstacles [x(m) y(m), ....]
-        self.ob = np.array([#[-1, -1],
-                            #[0, 2],
-                            #[4.0, 2.0],
-                            [5.0, 4.0],
-                            #[5.0, 5.0],
-                            [5.0, 6.0],
-                            #[5.0, 9.0],
-                            [8.0, 9.0],
-                            #[7.0, 9.0],
-                            #[8.0, 10.0],
-                            #[9.0, 11.0],
-                            [12.0, 13.0],
-                            #[12.0, 12.0],
-                            [15.0, 15.0],
-                            #[13.0, 13.0]
-                            ])
-
-
+        if var == "111":
+            # obstacles [x(m) y(m), ....]
+            self.ob = np.array([#[-1, -1],
+                                #[0, 2],
+                                #[4.0, 2.0],
+                                [5.0, 4.0],
+                                #[5.0, 5.0],
+                                [5.0, 6.0],
+                                #[5.0, 9.0],
+                                [8.0, 9.0],
+                                #[7.0, 9.0],
+                                #[8.0, 10.0],
+                                #[9.0, 11.0],
+                                [12.0, 13.0],
+                                #[12.0, 12.0],
+                                [15.0, 15.0],
+                                #[13.0, 13.0]
+                                ])
+        elif var == "111x":
+            self.ob = np.array([[5.0, -1.0],
+                                [6.0, -1.0],
+                                [7.0, -1.0],
+                                [7.0, 0.0],
+                                [7.0, 1.0],
+                                [6.0, 1.0],
+                                [5.0, 1.0],
+                                ])
+        
+        elif var == "111y":
+            self.ob = np.array([#[0.0, -6.0],
+                                #[2.4, -6.0],
+                                #[4.8, -6.0],
+                                [7.2, -6.0],
+                                [9.6, -6.0],
+                                [0.3, -1.0],
+                                [-0.3, 1.0]
+                                ])
 
 config = Config()
 
@@ -135,16 +156,16 @@ def calc_dynamic_window_boost(x, config,rl_action):
     ang_acc = rl_action[1]*config.max_delta_yaw_rate
     if acc >= 0:
         max_acc = acc
-        min_acc = 0
+        min_acc = ang_acc/10
     else:
-        max_acc = 0
+        max_acc = ang_acc/10
         min_acc = acc
 
     if ang_acc >= 0:
         max_ang_acc = ang_acc
-        min_ang_acc = 0
+        min_ang_acc = ang_acc/10
     else:
-        max_ang_acc = 0
+        max_ang_acc = ang_acc/10
         min_ang_acc = ang_acc
     # Dynamic window from robot specification
     Vs = [config.min_speed, config.max_speed,
@@ -284,31 +305,52 @@ def get_rl_ref(action,agent):
         if j == 0:
             robot_sim.step([action[0],action[1]], 0.2)
         else:
-            robot_sim.step_with_ref_speed(0.2, 1.0)
+            robot_sim.step_with_ref_speed(0.2, agent.speed)
         rl_ref.append(list(robot_sim.position))
     return rl_ref
+
+def update_obstacles(env_eval):
+    for i in range(len(config.ob)):
+        print("Before: " + config.ob[i])
+        config.ob[i] = env_eval.obstacles[i].keyframe.position
+        print("after: " + config.ob[i])
+    
+    return
 
 def run():
     
     # Select the path where the model should be stored
     # path = './Model/testing/variant-0/run1'
     # path = './Model/testing/variant-6'
-    path = "./Model/testing/variant-6"
+    path = f"./Model/testing/{var}"
+    # path = "./Model/testing/111"
     # path = './Model/ddpg/ray'
-    env_eval = gym.make('TrajectoryPlannerEnvironmentRaysReward1-v0', generate_map=generate_eval_map111)
+    if var == "111":
+        env_eval = gym.make('TrajectoryPlannerEnvironmentRaysReward1-v0', generate_map=generate_eval_map111)
+    elif var == "111x":
+        env_eval = gym.make('TrajectoryPlannerEnvironmentRaysReward1-v0', generate_map=generate_eval_map111x)
+    elif var == "111y":
+        env_eval = gym.make('TrajectoryPlannerEnvironmentRaysReward1-v0', generate_map=generate_eval_map111y)
 
     model = inference_model(path,env_eval)
     rl_time_list = []
     dwa_time_list = []
     while True:
         obs = env_eval.reset()
-        x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
-        x_dwa = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
+        x = np.copy(env_eval.agent.state)
+        x_dwa = np.copy(env_eval.agent.state)#np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
         goal = env_eval.goal.position
         trajectory_dwa = np.array(x)
         trajectory_drl = np.array(x)
         for i in range(0, 1000):
             
+            if var == "111y":
+                for i in range(len(config.ob)):
+                    # print("Before: " , config.ob[i])
+                    config.ob[i] = env_eval.obstacles[i].keyframe.position
+                    # print("after: " , config.ob[i])
+                # update_obstacles(env_eval)
+
             ### DRL ###
             rl_timer = PieceTimer()
             rl_action = model.get_action(obs)
@@ -316,8 +358,8 @@ def run():
             rl_time_list.append(last_rl_time)
 
             ### DWA ###
-            u, predicted_trajectory, last_dwa_time = dwa_control(x, config, goal, env_eval,True,rl_action)
-            # u, predicted_trajectory, last_dwa_time = dwa_control(x, config, goal, env_eval)
+            # u, predicted_trajectory, last_dwa_time = dwa_control(x, config, goal, env_eval,True,rl_action)
+            u, predicted_trajectory, last_dwa_time = dwa_control(x, config, goal, env_eval)
             dwa_time_list.append(last_dwa_time)
             dwa_ref = predicted_trajectory[:,0:2].tolist()
             # print(timer)
@@ -325,21 +367,21 @@ def run():
             x_dwa = motion(x, u, config.dt)
             trajectory_dwa = np.vstack((trajectory_dwa, x_dwa))
 
-            
-
             # print(last_rl_time)
             rl_ref = get_rl_ref(rl_action,env_eval.agent)
             
             obs, reward, done, info = env_eval.step(dwa_action)
+            
+            
             x = np.copy(env_eval.agent.state)
-            trajectory_drl = np.vstack((trajectory_dwa, x))
+            trajectory_drl = np.vstack((trajectory_drl, x))
             if i % 1 == 0: # Only render every third frame for performance (matplotlib is slow)
                 env_eval.render(dqn_ref=rl_ref,original_ref=dwa_ref)
             if done:
                 print(statistics.mean(dwa_time_list))
-                plt.plot(trajectory_dwa[:, 0], trajectory_dwa[:, 1], "-r")
-                plt.plot(trajectory_drl[:, 0], trajectory_drl[:, 1], "--g")
-                plt.show()
+                # plt.plot(trajectory_dwa[:, 0], trajectory_dwa[:, 1], "-r")
+                # plt.plot(trajectory_drl[:, 0], trajectory_drl[:, 1], "--g")
+                # plt.show()
                 break
                 
     

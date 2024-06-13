@@ -252,13 +252,13 @@ class Obstacle:
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
 
     @staticmethod
-    def create_mpc_dynamic_old(p1: ArrayLike, p2: ArrayLike, freq: float, rx: float, ry: float, angle: float, corners: int = 12, is_static=False) -> 'Obstacle':
+    def create_mpc_dynamic_old(p1: ArrayLike, p2: ArrayLike, freq: float, rx: float, ry: float, angle: float, corners: int = 12, offset_val=0, is_static=False) -> 'Obstacle':
         """Creates a dynamic obstacle according to the MPC paper https://doi.org/10.1109/CASE49439.2021.9551644"""
         nodes = np.zeros((corners, 2))
         for i in range(corners):
             angle = 2 * pi * i / corners
             nodes[i, :] = (rx * cos(angle), -ry * sin(angle))
-        offset = 0 # 0.5*pi/freq if freq > 0 else 0
+        offset = offset_val*pi/freq if freq > 0 else 0
         if is_static:
             return Obstacle(nodes, True, Animation.static(), is_static=is_static)
         else:

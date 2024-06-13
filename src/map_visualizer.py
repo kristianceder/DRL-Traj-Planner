@@ -94,13 +94,14 @@ def run():
                          (2, 1, 3),
                          ][3]
     #generate_map(*scene_option_list)
-    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_maps)
+    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_map111y)
     while True:
         env_eval.reset()
         # env_eval.step(np.array([0,0]))
-        for i in range(10):
+        for i in range(100):
             env_eval.step(np.array([0,0]))
             env_eval.render()
+            print(type(env_eval.obstacles[0].keyframe.position))
 
 
 
