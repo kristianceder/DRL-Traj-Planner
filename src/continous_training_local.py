@@ -21,7 +21,7 @@ from utils.plotresults import plot_training_results
 from stable_baselines3.common.env_checker import check_env
 from torch import no_grad
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
-from pkg_ddpg_td3.utils.map_eval import generate_eval_maps
+from pkg_ddpg_td3.utils.map_eval import generate_eval_maps, generate_eval_map111
 from pkg_ddpg_td3.environment import MapDescription
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from typing import Callable
@@ -127,18 +127,18 @@ def run():
         },
     ][index]
 
-    tot_timesteps = 50e5
+    tot_timesteps = 5e5
     n_cpu = 20
     
     
 
-    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_maps)
-    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_maps})
-    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_maps})
+    env_eval = gym.make(variant['env_name'], generate_map=generate_eval_map111)
+    vec_env = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_map111})
+    vec_env_eval = make_vec_env(variant['env_name'], n_envs=n_cpu, seed=0, vec_env_cls=SubprocVecEnv, env_kwargs={'generate_map': generate_eval_map111})
     # check_env(vec_env)
 
     n_actions  = vec_env.action_space.shape[-1]
-    action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.2 * np.ones(n_actions))
     # action_noise = NormalActionNoise(mean=np.zeros(n_actions),sigma=0.1 * np.ones(n_actions))
 
     if variant["algorithm"] == "DDPG" and not variant["per"]:
@@ -182,7 +182,7 @@ def run():
                     # buffer_size=int(1e6), 
                     # learning_starts=100, gamma=0.99,
                     # gradient_steps=-1,
-                    # action_noise = action_noise,
+                    action_noise = action_noise,
                     policy_kwargs={'net_arch': variant['net_arch']},
                     verbose=0,
                     device=variant['device'],

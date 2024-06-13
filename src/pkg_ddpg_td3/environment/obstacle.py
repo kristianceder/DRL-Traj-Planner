@@ -206,9 +206,16 @@ class Obstacle:
         return self.padded_polygon.contains(robot.point)
 
     @staticmethod
-    def create_mpc_static(nodes: ArrayLike, is_static=True) -> 'Obstacle':
+    def create_mpc_static(nodes: ArrayLike, is_static=True, is_circle=False) -> 'Obstacle':
         """Creates a static obstacle according to the MPC paper https://doi.org/10.1109/CASE49439.2021.9551644"""
-        return Obstacle(nodes, True, Animation.static(), is_static=is_static)
+        if is_circle:
+            nodes_circle = np.zeros((20, 2))
+            for i in range(20):
+                angle = 2 * pi * i / 20
+                nodes_circle[i, :] = (0.5 * cos(angle)+nodes[0], 0.5 * sin(angle)+nodes[1])
+            return Obstacle(nodes_circle, True, Animation.static(), is_static=is_static)
+        else:
+            return Obstacle(nodes, True, Animation.static(), is_static=is_static)
 
 
     @staticmethod
@@ -252,7 +259,10 @@ class Obstacle:
             angle = 2 * pi * i / corners
             nodes[i, :] = (rx * cos(angle), -ry * sin(angle))
         offset = 0 # 0.5*pi/freq if freq > 0 else 0
-        return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset), is_static=is_static)
+        if is_static:
+            return Obstacle(nodes, True, Animation.static(), is_static=is_static)
+        else:
+            return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset), is_static=is_static)
     
     @staticmethod
     def create_non_convex_u_shape(p1: ArrayLike, p2: ArrayLike, freq: float, angle: float) -> 'Obstacle':

@@ -20,9 +20,25 @@ def generate_eval_map111() -> MapDescription:
     Generates a randomized map with many dynamic obstacles
     """
 
-    init_state = np.array([0.6, 3.5, 0.0, 0, 0])
+    ob_list = [ #[-1, -1],
+                #[0, 2],
+                #[4.0, 2.0],
+                [5.0, 4.0],
+                #[5.0, 5.0],
+                [5.0, 6.0],
+                #[5.0, 9.0],
+                [8.0, 9.0],
+                #[7.0, 9.0],
+                #[8.0, 10.0],
+                #[9.0, 11.0],
+                [12.0, 13.0],
+                #[12.0, 12.0],
+                [15.0, 15.0],
+                #[13.0, 13.0]
+                ]
+    init_state = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
     atr = MobileRobot(init_state)
-    boundary = Boundary([(0.0, 0.0), (16.0, 0.0), (16.0, 10.0), (0.0, 10.0)])
+    boundary = Boundary([(-3.0, -3.0), (16.0, -3.0), (16.0, 16.0), (-3.0, 16.0)])
     obstacles = []
     unexpected_obstacles = []
     #scene_1_obstacles_list = [[(0.0, 1.5), (0.0, 1.6), (9.0, 1.6), (9.0, 1.5)],
@@ -30,10 +46,12 @@ def generate_eval_map111() -> MapDescription:
     #                        [(11.0, 1.5), (11.0, 1.6), (16.0, 1.6), (16.0, 1.5)],
     #                        [(11.0, 8.4), (11.0, 8.5), (16.0, 8.5), (16.0, 8.4)],]
     #obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in scene_1_obstacles_list]
-    goal = Goal((15.4, 3.5))
-
-    unexpected_obstacle = Obstacle.create_mpc_static([(7.5, 3.0), (7.5, 4.0), (8.5, 4.0), (8.5, 3.0)]) # small
-    unexpected_obstacles.append(unexpected_obstacle)
+    goal = Goal((10, 10))
+    # unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(15.4, 3.5), p2=(0.6, 3.5), freq=0.0, rx=0.5, ry=0.5, angle=0.0, corners=20, is_static=True)
+    # unexpected_obstacles.append(unexpected_obstacle)
+    unexpected_obstacles = [Obstacle.create_mpc_static(obstacle,is_circle=True) for obstacle in ob_list]
+    # unexpected_obstacle = Obstacle.create_mpc_static([7.5, 3.0],is_circle=True) # small
+    # unexpected_obstacles.append(unexpected_obstacle)
 
     for o in unexpected_obstacles:
         o.visible_on_reference_path = False
@@ -275,7 +293,7 @@ def generate_eval_map141() -> MapDescription:
     obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in obstacles_list]
 
     unexpected_obstacles = []
-    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(15.4, 3.5), p2=(0.6, 3.5), freq=0.15, rx=0.8, ry=0.8, angle=0.0, corners=20)
+    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(15.4, 3.5), p2=(0.6, 3.5), freq=0.0, rx=0.5, ry=0.5, angle=0.0, corners=20)
     unexpected_obstacles.append(unexpected_obstacle)
 
     for o in unexpected_obstacles:

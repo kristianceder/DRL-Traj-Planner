@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from shapely.geometry import Point
 
 from numpy.typing import ArrayLike, NDArray
@@ -7,13 +8,13 @@ from numpy.typing import ArrayLike, NDArray
 class MobileRobotSpecification:
     RADIUS = 0.5
     SPEED_MIN = -0.5
-    SPEED_MAX = 1.5
-    ANGULAR_VELOCITY_MIN = -0.5
-    ANGULAR_VELOCITY_MAX = 0.5
-    ACCELERATION_MIN = -1.0
-    ACCELERATION_MAX = 1.0
-    ANGULAR_ACCELERATION_MIN = -3.0
-    ANGULAR_ACCELERATION_MAX = 3.0
+    SPEED_MAX = 1.0
+    ANGULAR_VELOCITY_MIN = -(40.0 * math.pi / 180.0)
+    ANGULAR_VELOCITY_MAX = 40.0 * math.pi / 180.0
+    ACCELERATION_MIN = -0.2
+    ACCELERATION_MAX = 0.2
+    ANGULAR_ACCELERATION_MIN = -(40.0 * math.pi / 180.0)
+    ANGULAR_ACCELERATION_MAX = 40.0 * math.pi / 180.0
 
 
 class MobileRobot:
@@ -129,9 +130,8 @@ class MobileRobot:
             Angular acceleration betwen -3m/s^2 and 3m/s^2
             Acceleration betwen -1m/s^2 and 1m/s^2
         """
-        
-        self._acceleration = action[0]
-        self._angular_acceleration = 3*action[1]
+        self._acceleration = self.cfg.ACCELERATION_MAX*action[0]
+        self._angular_acceleration = self.cfg.ANGULAR_ACCELERATION_MAX*action[1]
 
         self.speed += time_step*self._acceleration
         self.angular_velocity += time_step*self._angular_acceleration

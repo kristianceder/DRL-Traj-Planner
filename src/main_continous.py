@@ -16,7 +16,7 @@ from stable_baselines3.common import env_checker
 
 from pkg_ddpg_td3.environment import MobileRobot
 from pkg_ddpg_td3.environment.environment import TrajectoryPlannerEnvironment
-
+from pkg_ddpg_td3.utils.map_eval import generate_eval_map111
 ### MPC import
 from interface_mpc import InterfaceMpc
 from util.mpc_config import Configurator
@@ -25,6 +25,7 @@ from util.mpc_config import Configurator
 from main_pre_continous import generate_map, get_geometric_map, HintSwitcher, Metrics
 from pkg_ddpg_td3.utils.map import test_scene_1_dict, test_scene_2_dict
 #from pkg_dqn.utils.map import test_scene_1_dict, test_scene_2_dict
+
 
 ### Others
 from timer import PieceTimer, LoopTimer
@@ -107,7 +108,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
 
     time_list = []
 
-    ddpg_model, td3_model, env_eval = load_rl_model_env(generate_map(*scene_option), rl_index)
+    ddpg_model, td3_model, env_eval = load_rl_model_env(generate_eval_map111, rl_index)
 
     CONFIG_FN = 'mpc_longiter.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
@@ -326,7 +327,7 @@ if __name__ == '__main__':
     """
     scene_option = (1, 4, 1)
 
-    # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save_num=1) # Eval MPC using main.py
+    time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=True, scene_option=scene_option, save_num=1) # Eval MPC using main.py
     # time_list_lid     = main(rl_index=1,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=2)
     time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=True, scene_option=scene_option, save_num=3)
     # time_list_hyb_lid = main(rl_index=1,    decision_mode=3,  to_plot=False, scene_option=scene_option, save_num=4)

@@ -19,7 +19,7 @@ class TrajectoryPlannerEnvironmentRaysReward1(TrajectoryPlannerEnvironment):
         collision_reward_factor: float = 4,
         reach_goal_reward_factor: float = 3,
         cross_track_reward_factor: float = 0.05,
-        reference_speed: float = MobileRobot().cfg.SPEED_MAX * 0.8,
+        reference_speed: float = MobileRobot().cfg.SPEED_MAX * 1,
         path_progress_factor: float = 2,
         jerk_factor: float = 0.02,
         angular_jerk_factor: float = 0.02,
