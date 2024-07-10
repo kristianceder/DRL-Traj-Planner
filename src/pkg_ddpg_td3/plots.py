@@ -3,7 +3,7 @@ This file generates all the plots used for the report. It has some extra
 dependencies which I can't be bothered to list, but if you happen to have a
 Chalmers StuDAT linux computer at hand, this file is comfirmed run on those.
 """
-import gym
+import gymnasium as gym
 import numpy as np
 
 import matplotlib

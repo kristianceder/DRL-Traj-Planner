@@ -9,7 +9,7 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 """
 
 import sys
-import gym
+import gymnasium as gym
 import numpy as np
 import random
 

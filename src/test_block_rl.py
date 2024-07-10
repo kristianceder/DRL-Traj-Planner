@@ -10,7 +10,7 @@ import random
 import numpy as np
 import copy
 
-import gym
+import gymnasium as gym
 from torch import no_grad
 
 from stable_baselines3 import DDPG

@@ -7,14 +7,14 @@ stable_baselines3 `DDPG`` class, in particular the ``train`` method of the class
 
 from typing import Any, List, Dict, Optional, Tuple, Type, Union
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 import torch as th
 
 from stable_baselines3.common.buffers import DictReplayBuffer
 from stable_baselines3 import DDPG
 from stable_baselines3.common.policies import BasePolicy
-from stable_baselines3.common.type_aliases import GymEnv, Schedule
+# from stable_baselines3.common.type_aliases import gym as GymEnv, Schedule
 
 from stable_baselines3.td3.policies import CnnPolicy, TD3Policy, MlpPolicy, MultiInputPolicy
 from stable_baselines3.common.vec_env import VecNormalize
@@ -238,8 +238,8 @@ class PerDDPG(DDPG):
     def __init__(
         self,
         policy: Union[str, Type[TD3Policy]],
-        env: Union[GymEnv, str],
-        learning_rate: Union[float, Schedule] = 1e-4,
+        env: Any, # FIXME Union[GymEnv, str]
+        learning_rate: Any = 1e-4, # FIXME Union[float, Schedule]
         buffer_size: int = 1_000_000,  # 1e6
         learning_starts: int = 50000,
         batch_size: int = 32,

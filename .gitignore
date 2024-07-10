@@ -6,3 +6,8 @@
 *.avi
 .vscode/
 mpc_solver/*
+
+runs/
+wandb/
+.idea/
+Model/testing

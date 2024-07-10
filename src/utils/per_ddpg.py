@@ -7,14 +7,14 @@ stable_baselines3 `DQN`` class, in particular the ``train`` method of the class
 
 from typing import Any, List, Dict, Optional, Tuple, Type, Union
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 import torch as th
 
 from stable_baselines3.common.buffers import DictReplayBuffer
 from stable_baselines3 import DDPG
 from stable_baselines3.common.policies import BasePolicy
-from stable_baselines3.common.type_aliases import GymEnv, Schedule
+from stable_baselines3.common.type_aliases import gym as gymEnv, Schedule
 
 from stable_baselines3.td3.policies import CnnPolicy, TD3Policy, MlpPolicy, MultiInputPolicy
 from stable_baselines3.common.vec_env import VecNormalize

@@ -8,7 +8,7 @@ MapGenerator = Callable[[], MapDescription]
 
 __all__ = ['MobileRobot', 'Boundary', 'Obstacle', 'Animation', 'Goal', 'MapDescription']
 
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 
 register(
     id='TrajectoryPlannerEnvironmentGoal-v0',

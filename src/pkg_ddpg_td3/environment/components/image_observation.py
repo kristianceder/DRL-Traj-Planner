@@ -1,4 +1,4 @@
-from gym import spaces
+from gymnasium import spaces
 from typing import Union
 import cv2
 import numpy as np

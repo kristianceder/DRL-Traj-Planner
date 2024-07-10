@@ -8,7 +8,7 @@ varaible as the first argument from the command line.
 This is generally done by the slurm array function as seen in ``SLURM_jobscript.sh``.
 """
 
-import gym
+import gymnasium as gym
 
 from pkg_ddpg_td3.utils.map import generate_map_eval
 from pkg_ddpg_td3.utils.map_simple import *

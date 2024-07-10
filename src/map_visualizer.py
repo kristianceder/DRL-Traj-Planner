@@ -1,5 +1,5 @@
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval

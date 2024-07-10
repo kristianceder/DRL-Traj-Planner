@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### DRL import
-import gym
+import gymnasium as gym
 from torch import no_grad
 from stable_baselines3 import DDPG,TD3
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG

@@ -1,9 +1,9 @@
 from time import time
 from packaging import version
 
-
-import gym
-from gym import spaces
+import wandb
+import gymnasium as gym
+from gymnasium import spaces
 
 import numpy as np
 from numpy.linalg import norm
@@ -42,7 +42,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
     # Component producing external observations
     external_obs_component: Union[Component, None] = None
 
-    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2):
+    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2, logging=False):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -50,7 +50,9 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.components = components
         self.generate_map = generate_map
         self.time_step = time_step
+        self.logging = logging
         self.render_cnt = 0
+        self.render_mode = "rgb_array"
 
         for component in self.components:
             component.env = self
@@ -207,7 +209,10 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.update_status()
 
         observation = self.get_observation()
-        reward = float(sum(c.step(action) for c in self.components))
+        rwds = [c.step(action) for c in self.components]
+        if self.logging:
+            wandb.log({f'rewards/r{i}': val for i, val in rwds})
+        reward = float(sum(rwds))
         terminated = self.update_termination()
         info = self.get_info()
 
@@ -291,7 +296,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
             #     pass
 
         if mode == "human":
-            self.fig.canvas.flush_events()
+            # self.fig.canvas.flush_events()
+            pass
         else:
             data = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
             data = data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
