@@ -255,14 +255,19 @@ class Obstacle:
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset), is_static=is_static)
     
     @staticmethod
-    def create_non_convex_u_shape(p1: ArrayLike, p2: ArrayLike, freq: float, angle: float) -> 'Obstacle':
+    def create_non_convex_u_shape(p1: ArrayLike, p2: ArrayLike, freq: float, angle: float, use_random: bool = True) -> 'Obstacle':
         """Creates a dynamic obstacle as a non-convex object."""
         r = 1.5
-        left = r + random.uniform(-1,1)/2
-        right = r + random.uniform(-1,1)/2
-        thickness = random.uniform(r/2,r/1.4)
+        if use_random:
+            left = r + random.uniform(-1,1)/2
+            right = r + random.uniform(-1,1)/2
+            thickness = random.uniform(r/2,r/1.4)
+        else:
+            left = .5
+            right = .5
+            thickness = r / 2
         u_shape = np.array([[-r, -right], [-r, r], [r, r],[r, -left],[thickness, -left], [thickness, thickness], [-thickness, thickness], [-thickness, -right]])
-        scaling_factor = 1 + random.uniform(0,1)
+        scaling_factor = 1 + random.uniform(0,1) if use_random else 1.5
         nodes = u_shape*scaling_factor
         offset = 0.5*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))

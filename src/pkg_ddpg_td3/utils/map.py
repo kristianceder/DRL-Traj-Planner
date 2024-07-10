@@ -454,7 +454,8 @@ def generate_map_eval() -> MapDescription:
     max_angle = math.pi / 2
 
     wall_padding = 5
-    corridor_padding = random.uniform(0.7, 1.5)
+    # FIXME corridor_padding = random.uniform(0.7, 1.5)
+    corridor_padding = 1.5#random.uniform(0.7, 1.5)
 
     coords = np.asarray([(0, 0), (wall_padding, 0)])
     angle = 0
@@ -499,7 +500,7 @@ def generate_map_eval() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 1, 0.5, -pi/4, random = False))
     obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.2, 1, 1, pi/3, random = False))
     
-    obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, pi+pi/8))
+    obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, pi+pi/8, use_random=False))
     obstacles.append(Obstacle.create_mpc_static([(42, -14), (50, -14), (50, 5), (42, 5)]))
 
     if pminx < pmaxx:

@@ -9,8 +9,6 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 """
 
 import os
-import sys
-import numpy as np
 import random
 import argparse
 from datetime import datetime
@@ -18,41 +16,24 @@ from pathlib import Path
 
 import wandb
 import torch
-from wandb.integration.sb3 import WandbCallback
 from utils.plotresults import plot_training_results
 from torch import no_grad
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, generate_map_mpc, generate_map_eval
+from pkg_ddpg_td3.utils.map import (
+    generate_map_dynamic,
+    generate_map_corridor,
+    generate_map_mpc,
+    generate_map_eval
+)
 from pkg_ddpg_td3.environment import MapDescription
-from typing import Callable
 
-from utils.torchrl.env import make_env
+from utils.torchrl.env import make_env, render_rollout
 from utils.torchrl.sac import SAC
 
 from configs import BaseConfig
 
 
-def generate_map() -> MapDescription:
+# def generate_map() -> MapDescription:
     # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc()])()
-    return generate_map_dynamic()
-
-def linear_schedule(initial_value: float) -> Callable[[float], float]:
-    """
-    Linear learning rate schedule.
-
-    :param initial_value: Initial learning rate.
-    :return: schedule that computes
-      current learning rate depending on remaining progress
-    """
-    def func(progress_remaining: float) -> float:
-        """
-        Progress will decrease from 1 (beginning) to 0.
-
-        :param progress_remaining:
-        :return: current learning rate
-        """
-        return progress_remaining * initial_value
-
-    return func
 
 def run():
     parser = argparse.ArgumentParser(
@@ -64,55 +45,34 @@ def run():
 
     args = parser.parse_args()
     
-    # Load a pre-trained model
-    load_checkpoint = args.load_checkpoint
-
     config = BaseConfig()
-    train_env = make_env(generate_map_dynamic, config)
-    eval_env = make_env(generate_map_dynamic, config)
+    random.seed(config.seed)
+    torch.manual_seed(config.seed)
+
+    train_env = make_env(generate_map_eval, config)
+    eval_env = make_env(generate_map_eval, config)
 
     model = SAC(config.sac, train_env, eval_env)
 
-    if load_checkpoint:
+    if args.load_checkpoint:
         # get latest path
+        models_path = Path('../Model/testing')
         if args.path is None:
-            path = max(Path('Model/testing').glob('*/'), key=os.path.getmtime)
-            path += "/final_model.pth"
+            path = max(models_path.glob('*/'), key=os.path.getmtime)
         else:
-            path = args.path
-        # model = Algorithm.load(f"{path}/best_model", env=eval_env)
-        # path = "../Model/torchrl_testing/24_07_10_12_07_58_SAC/final_model.pth"
+            path = models_path / args.path
+
+
+        path = path / "final_model.pth"
+        # path = "../Model/testing/24_07_10_12_07_58_SAC/final_model.pth"
         model.load(path)
         # plot_training_results(path)
-
-        with no_grad():
-            state = eval_env.reset()
-            steps = 0
-            ep_rwd = torch.zeros(1)
-            for i in range(0, 2_000):
-                action = state.copy()
-                action['action'] = model.sample_action(state, sample_mean=True)
-                # action = eval_env.rand_action(state)
-                next_state = eval_env.step(action)
-
-                steps += 1
-                ep_rwd += next_state['next']['reward']
-
-                # Only render every third frame for performance (matplotlib is slow)
-                if i % 3 == 0 and i > 0:
-                    eval_env.render()
-
-                if next_state['next']['done'] or steps > config.sac.max_eps_steps:
-                    print('reset')
-                    state = eval_env.reset()
-                    steps = 0
-                else:
-                    state = next_state
+        render_rollout(eval_env, model, config)
     
     else:
-
         timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
-        path = f"./Model/torch_rl_testing/{timestamp}_sac"
+        path = Path(f"../Model/testing/{timestamp}_SAC")
+        path.mkdir(exist_ok=True, parents=True)
 
         run = wandb.init(
             project="DRL-Traj-Planner",

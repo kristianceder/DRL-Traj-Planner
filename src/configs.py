@@ -3,11 +3,11 @@ from typing import Optional
 
 class SACConfig(BaseModel):
     seed: Optional[int] = None
-    max_eps_steps: int = 500
+    max_eps_steps: int = 400
 
     # collector
-    total_frames: int = 150_000
-    init_random_frames: int = 5000
+    total_frames: int = 20_000
+    init_random_frames: int = 2000
     frames_per_batch: int = 1000
     init_env_steps: int = 1000
     env_per_collector: int = 1
