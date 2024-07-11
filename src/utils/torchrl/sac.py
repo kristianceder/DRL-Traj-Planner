@@ -128,12 +128,15 @@ class SAC(AlgoBase):
                 else tensordict["next", "truncated"]
             )
             episode_rewards = tensordict["next", "episode_reward"][episode_end]
+            episode_success = tensordict["next", "success"][episode_end]
 
             # Logging
             metrics_to_log = {}
             if len(episode_rewards) > 0:
                 episode_length = tensordict["next", "step_count"][episode_end]
-                metrics_to_log["train/reward"] = episode_rewards.mean().item()
+                metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
+                metrics_to_log["train/episode_success"] = episode_success.float().mean().item()
+                metrics_to_log["train/reward"] = tensordict["next", "reward"].mean().item()
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
                 )
@@ -157,10 +160,22 @@ class SAC(AlgoBase):
                         break_when_any_done=True,
                     )
                     eval_time = time.time() - eval_start
-                    eval_reward = eval_rollout["next", "reward"].mean(-2).mean().item()
+                    eval_reward = eval_rollout["next", "reward"].mean().item()
+                    eval_episode_end = (
+                        eval_rollout["next", "done"]
+                        if eval_rollout["next", "done"].any()
+                        else eval_rollout["next", "truncated"]
+                    )
+                    eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
+                    eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
+                    eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
+                    eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
+
+                    metrics_to_log["eval/episode_reward"] = eval_episode_rewards.mean().item()
+                    metrics_to_log["eval/episode_length"] = eval_episode_len
+                    metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
                     metrics_to_log["eval/reward"] = eval_reward
                     metrics_to_log["eval/time"] = eval_time
-                    print("mean reward", eval_reward)
             
             if use_wandb:
                 wandb.log(metrics_to_log, step=collected_frames)

@@ -32,10 +32,11 @@ from utils.torchrl.sac import SAC
 from configs import BaseConfig
 
 
-# def generate_map() -> MapDescription:
-    # return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_mpc()])()
+# TODO (kilian):
+# - fix running on gpu device
+# - generalize RL part to easily implement other algos
 
-def run():
+def process_args():
     parser = argparse.ArgumentParser(
                     prog='DRL-Traj-Planner',
                     description='Mobile robot navigation',)
@@ -43,38 +44,38 @@ def run():
                     action='store_true')
     parser.add_argument('-p', '--path', default=None, type=str)
 
-    args = parser.parse_args()
-    
+    return parser.parse_args()
+
+
+def run():
+    args = process_args()
     config = BaseConfig()
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    train_env = make_env(generate_map_eval, config)
-    eval_env = make_env(generate_map_eval, config)
+    train_env = make_env(config, generate_map=generate_map_eval, use_wandb=True)
+    eval_env = make_env(config, generate_map=generate_map_eval)#, use_wandb=True)
 
     model = SAC(config.sac, train_env, eval_env)
+    models_path = Path('../Model/testing')
 
     if args.load_checkpoint:
-        # get latest path
-        models_path = Path('../Model/testing')
         if args.path is None:
+            # get latest path
             path = max(models_path.glob('*/'), key=os.path.getmtime)
         else:
             path = models_path / args.path
 
-
+        print(f"Loading {path}")
         path = path / "final_model.pth"
-        # path = "../Model/testing/24_07_10_12_07_58_SAC/final_model.pth"
         model.load(path)
-        # plot_training_results(path)
-        render_rollout(eval_env, model, config)
-    
+        render_rollout(eval_env, model, config, n_steps=3_000)
     else:
         timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
-        path = Path(f"../Model/testing/{timestamp}_SAC")
+        path = models_path / f"{timestamp}_SAC"
         path.mkdir(exist_ok=True, parents=True)
 
-        run = wandb.init(
+        _ = wandb.init(
             project="DRL-Traj-Planner",
             config=config.model_dump(),
             tags="sac_exploration",
@@ -82,6 +83,7 @@ def run():
 
         model.train()
         model.save(f"{path}/final_model.pth")
+        render_rollout(eval_env, model, config, n_steps=1_000)
 
 
 if __name__ == "__main__":

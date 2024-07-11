@@ -42,7 +42,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
     # Component producing external observations
     external_obs_component: Union[Component, None] = None
 
-    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2, logging=False):
+    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2, use_wandb=False):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -50,7 +50,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.components = components
         self.generate_map = generate_map
         self.time_step = time_step
-        self.logging = logging
+        self.use_wandb = use_wandb
         self.render_cnt = 0
         self.render_mode = "rgb_array"
 
@@ -144,7 +144,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         return len(path) > 0
 
     def get_info(self) -> dict:
-        return {"success": self.reached_goal}
+        return {"success": [self.reached_goal]}
 
     def get_observation(self) -> dict:
         """Collects observations from all components and returns them"""
@@ -210,8 +210,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
 
         observation = self.get_observation()
         rwds = [c.step(action) for c in self.components]
-        if self.logging:
-            wandb.log({f'rewards/r{i}': val for i, val in rwds})
+        if self.use_wandb:
+            wandb.log({f'rewards/r{i}': val for i, val in enumerate(rwds)})
         reward = float(sum(rwds))
         terminated = self.update_termination()
         info = self.get_info()

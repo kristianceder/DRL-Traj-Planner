@@ -3,7 +3,7 @@ from typing import Optional
 
 class SACConfig(BaseModel):
     seed: Optional[int] = None
-    max_eps_steps: int = 400
+    max_eps_steps: int = 600
 
     # collector
     total_frames: int = 20_000
@@ -14,7 +14,7 @@ class SACConfig(BaseModel):
     reset_at_each_iter: bool = False
     
     # replay
-    replay_buffer_size: int = 1000000
+    replay_buffer_size: int = 1_000_000
     prioritize: int = 0
     scratch_dir: None = None
 
@@ -24,7 +24,7 @@ class SACConfig(BaseModel):
     loss_function: str = "l2"
     actor_lr: float = 3.0e-4
     critic_lr: float = 3.0e-4
-    weight_decay: float = 0.0
+    weight_decay: float = 0.01
     batch_size: int = 256
     target_update_polyak: float = 0.995
     alpha_init: float = 1.0
