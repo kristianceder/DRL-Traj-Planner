@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import time
 import tqdm
-import torch
 
 import wandb
 import torch
@@ -13,68 +12,8 @@ from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
 from torchrl.modules.distributions import TanhNormal
-from torchrl.collectors import SyncDataCollector
-from torchrl.data import TensorDictPrioritizedReplayBuffer, TensorDictReplayBuffer
-from torchrl.data.replay_buffers.storages import LazyMemmapStorage
 
-
-def get_activation(activation):
-    if activation == "relu":
-        return nn.ReLU
-    elif activation == "tanh":
-        return nn.Tanh
-    elif activation == "leaky_relu":
-        return nn.LeakyReLU
-    else:
-        raise NotImplementedError
-    
-
-def make_collector(config, train_env, actor_model_explore, is_pretrained):
-    collector = SyncDataCollector(
-        train_env,
-        actor_model_explore,
-        init_random_frames=None if is_pretrained else config.init_random_frames,
-        frames_per_batch=config.frames_per_batch,
-        total_frames=config.total_frames,
-        device=config.device,
-    )
-    collector.set_seed(config.seed)
-    return collector
-
-
-def make_replay_buffer(
-    batch_size,
-    prioritize=False,
-    buffer_size=1000000,
-    scratch_dir=None,
-    device="cpu",
-    prefetch=3,
-):
-    if prioritize:
-        replay_buffer = TensorDictPrioritizedReplayBuffer(
-            alpha=0.7,
-            beta=0.5,
-            pin_memory=False,
-            prefetch=prefetch,
-            storage=LazyMemmapStorage(
-                buffer_size,
-                scratch_dir=scratch_dir,
-                device=device,
-            ),
-            batch_size=batch_size,
-        )
-    else:
-        replay_buffer = TensorDictReplayBuffer(
-            pin_memory=False,
-            prefetch=prefetch,
-            storage=LazyMemmapStorage(
-                buffer_size,
-                scratch_dir=scratch_dir,
-                device=device,
-            ),
-            batch_size=batch_size,
-        )
-    return replay_buffer
+from .utils import get_activation, make_collector, make_replay_buffer
 
 
 class AlgoBase(ABC):
@@ -100,6 +39,7 @@ class AlgoBase(ABC):
             buffer_size=self.config.replay_buffer_size,
             scratch_dir=self.config.scratch_dir,
             device="cpu",
+            prefetch=self.config.prefetch,
         )
 
     @abstractmethod
@@ -140,8 +80,10 @@ class AlgoBase(ABC):
 
     def _post_init_optimizer(self):
         if self.config.use_lr_schedule:
+            num_schedule_steps = ((self.config.total_frames - self.config.first_reduce_frame)
+                                  // self.config.frames_per_batch)
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                self.optim, self.config.total_frames // self.config.frames_per_batch, 0.0
+                self.optim, num_schedule_steps, 1e-6
             )
         else:
             self.scheduler = None
@@ -226,9 +168,10 @@ class AlgoBase(ABC):
         del td
         self.train_env.close()
 
-    def train(self, use_wandb=True):
+    def train(self, use_wandb=True, env_maker=None):
         # Create off-policy collector
-        collector = make_collector(self.config, self.train_env, self.model["policy"], self.is_pretrained)
+        collector = make_collector(self.config, self.train_env, self.model["policy"],
+                                   self.is_pretrained, env_maker=env_maker)
 
         # Main loop
         start_time = time.time()
@@ -293,11 +236,6 @@ class AlgoBase(ABC):
 
             training_time = time.time() - training_start
             episode_end = tensordict["next", "done"]
-            # (
-                # tensordict["next", "done"]
-            #     or tensordict["next", "truncated"]
-            #     or tensordict["next", "terminated"]
-            # )
             episode_rewards = tensordict["next", "episode_reward"][episode_end]
             episode_success = tensordict["next", "success"][episode_end]
             episode_collided = tensordict["next", "collided"][episode_end]
@@ -314,12 +252,16 @@ class AlgoBase(ABC):
                     episode_length
                 )
                 # TODO log lr
-                # self.optim.param_groups[0]["lr"]
+                if isinstance(self.optim, dict):
+                    for k, opt in self.optim.items():
+                        metrics_to_log[f"train/lr_{k}"] = opt.param_groups[0]["lr"]
+                else:
+                    metrics_to_log["train/lr"] = self.optim.param_groups[0]["lr"]
             if collected_frames >= self.config.init_env_steps:
                 for k in losses.keys():
                     metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
-                # TODO fix this
-                # metrics_to_log["train/alpha"] = loss_td["alpha"].item()
+                if "alpha" in loss_td.keys():
+                    metrics_to_log["train/alpha"] = loss_td["alpha"].item()
                 metrics_to_log["train/entropy"] = loss_td["entropy"].item()
                 metrics_to_log["train/sampling_time"] = sampling_time
                 metrics_to_log["train/training_time"] = training_time
@@ -337,11 +279,6 @@ class AlgoBase(ABC):
                     eval_time = time.time() - eval_start
                     eval_reward = eval_rollout["next", "reward"].mean().item()
                     eval_episode_end = eval_rollout["next", "done"]
-                    # (
-                    #     eval_rollout["next", "done"]
-                    #     or eval_rollout["next", "truncated"]
-                    #     or eval_rollout["next", "terminated"]
-                    # )
                     eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
                     eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
                     eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
@@ -356,12 +293,13 @@ class AlgoBase(ABC):
             if use_wandb:
                 wandb.log(metrics_to_log, step=collected_frames)
             
-            if self.scheduler is not None:
+            if self.scheduler is not None and collected_frames >= self.config.first_reduce_frame:
                 self.scheduler.step()
 
             sampling_start = time.time()
 
         collector.shutdown()
+        del collector
         end_time = time.time()
         execution_time = end_time - start_time
         print(f"Training took {execution_time:.2f} seconds to finish")

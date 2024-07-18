@@ -2,11 +2,7 @@ import torch
 from torchrl.objectives.ppo import ClipPPOLoss
 from torchrl.objectives.value import GAE
 
-from utils.torchrl.base import (
-    AlgoBase,
-    make_collector,
-    make_replay_buffer
-)
+from pkg_torchrl.base import AlgoBase
 
 
 class PPO(AlgoBase):
@@ -58,7 +54,7 @@ class PPO(AlgoBase):
 
 if __name__ == '__main__':
     from pkg_ddpg_td3.utils.map import generate_map_dynamic
-    from utils.torchrl.env import make_env
+    from pkg_torchrl.env import make_env
     from configs import BaseConfig
 
     config =  BaseConfig()

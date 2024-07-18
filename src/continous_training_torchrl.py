@@ -24,9 +24,9 @@ from pkg_ddpg_td3.utils.map import (
     generate_map_eval,
     generate_map_dynamic_explore,
 )
-from utils.torchrl.env import make_env, render_rollout
-from utils.torchrl.sac import SAC
-from utils.torchrl.ppo import PPO
+from pkg_torchrl.env import make_env, render_rollout
+from pkg_torchrl.sac import SAC
+from pkg_torchrl.ppo import PPO
 
 from configs import BaseConfig
 
@@ -41,10 +41,10 @@ class ConstWrapper:
 
 def process_args():
     parser = argparse.ArgumentParser(
-                    prog='DRL-Traj-Planner',
-                    description='Mobile robot navigation',)
+        prog='DRL-Traj-Planner',
+        description='Mobile robot navigation', )
     parser.add_argument('-v', '--visualize',
-                    action='store_true')
+                        action='store_true')
     parser.add_argument('-p', '--path', default=None, type=str)
 
     return parser.parse_args()
@@ -61,7 +61,9 @@ def run():
     # eval_map = ConstWrapper(generate_map_dynamic) if not args.visualize else generate_map_dynamic
 
     train_env = make_env(config, generate_map=generate_map, use_wandb=True)
-    eval_env = make_env(config, generate_map=eval_map)#, use_wandb=True)
+    eval_env = make_env(config, generate_map=eval_map)
+
+    env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
@@ -107,7 +109,7 @@ def run():
         )
         wandb.config["path"] = path
 
-        model.train()
+        model.train(env_maker=env_maker)
         model.save(f"{path}/final_model.pth")
         render_rollout(eval_env, model, config, n_steps=1_000)
 

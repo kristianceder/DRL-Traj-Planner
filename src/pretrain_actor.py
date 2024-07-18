@@ -21,9 +21,9 @@ from tensordict.nn.distributions import NormalParamExtractor
 from tensordict.nn import InteractionType, TensorDictModule
 
 from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_static
-from utils.torchrl.base import get_activation
-from utils.torchrl.env import make_env
-from utils.torchrl.pretrain import SimpleController, rollout
+from pkg_torchrl.base import get_activation
+from pkg_torchrl.env import make_env
+from pkg_torchrl.pretrain import SimpleController, rollout
 
 from configs import BaseConfig
 

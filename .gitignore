@@ -5,7 +5,7 @@
 *.sif
 *.avi
 .vscode/
-mpc_solver/
+**/mpc_solver/
 
 runs/
 wandb/

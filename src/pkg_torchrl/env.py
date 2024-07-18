@@ -7,6 +7,7 @@ from torchrl.envs import (
     Compose,
     DoubleToFloat,
     TransformedEnv,
+    ParallelEnv,
 )
 from torchrl.envs.transforms import (
     InitTracker,
@@ -18,30 +19,34 @@ from torchrl.envs.utils import ExplorationType, set_exploration_type
 
 
 def make_env(config, **kwargs):
-    env = GymEnv(config.env_name, device=config.device, **kwargs)
+    raw_env = GymEnv(config.env_name, device=config.device, **kwargs)
 
-    transform_list = [
-        InitTracker(),
-        StepCounter(config.sac.max_eps_steps),
-        DoubleToFloat(),
-        RewardSum(),
-        CatTensors(in_keys=['internal', 'external'], out_key="observation"),
-    ]
+    def make_t_env():
+        transform_list = [
+            InitTracker(),
+            StepCounter(config.sac.max_eps_steps),
+            DoubleToFloat(),
+            RewardSum(),
+            CatTensors(in_keys=['internal', 'external'], out_key="observation"),
+        ]
 
-    if config.use_vec_norm:
-        transform_list += [VecNorm(decay=0.9),]
+        if config.use_vec_norm:
+            transform_list += [VecNorm(decay=0.9),]
+        t_env = TransformedEnv(raw_env, Compose(*transform_list))
+        reader = default_info_dict_reader(["success", "collided"])#+rwd_info_keys)
+        t_env.set_info_dict_reader(info_dict_reader=reader)
+        return t_env
 
-    transformed_env = TransformedEnv(
-        env,
-        Compose(
-            *transform_list
-        ),
-    )
+    if config.n_envs == 1:
+        env = make_t_env()
+    else:
+        env = ParallelEnv(
+            create_env_fn=lambda: make_t_env(),
+            num_workers=config.n_envs,
+            pin_memory=False,
+        )
 
-    reader = default_info_dict_reader(["success", "collided"])#+rwd_info_keys)
-    transformed_env.set_info_dict_reader(info_dict_reader=reader)
-
-    return transformed_env
+    return env
 
 
 def render_rollout(eval_env, model, config, n_steps=2_000, is_torchrl=True):

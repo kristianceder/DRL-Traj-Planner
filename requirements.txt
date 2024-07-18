@@ -8,8 +8,8 @@ cycler==0.11.0
 decorator==5.1.1
 extremitypathfinder==2.4.1
 fonttools==4.38.0
-gym
-gym-notices==0.0.8
+gymnasium
+# gym-notices==0.0.8
 importlib-metadata==4.13.0
 Jinja2==3.1.2
 kiwisolver==1.4.4
@@ -17,10 +17,10 @@ MarkupSafe==2.1.2
 matplotlib
 networkx==2.8.8
 numpy
-nvidia-cublas-cu11==11.10.3.66
-nvidia-cuda-nvrtc-cu11==11.7.99
-nvidia-cuda-runtime-cu11==11.7.99
-nvidia-cudnn-cu11
+# nvidia-cublas-cu11==11.10.3.66
+# nvidia-cuda-nvrtc-cu11==11.7.99
+# nvidia-cuda-runtime-cu11==11.7.99
+# nvidia-cudnn-cu11
 opencv-python==4.6.0.66
 opengen==0.7.1
 packaging==21.3
@@ -38,8 +38,10 @@ rich==12.6.0
 scipy==1.10.0
 Shapely
 six==1.16.0
-stable-baselines3==1.6.2
-torch==1.13.0
+# stable-baselines3==1.6.2
+# torch==1.13.0
+tensordict-nightly
+torchrl-nightly
 tqdm==4.64.1
 typing_extensions
 zipp==3.10.0

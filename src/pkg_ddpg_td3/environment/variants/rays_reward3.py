@@ -39,13 +39,13 @@ class TrajectoryPlannerEnvironmentRaysReward3(TrajectoryPlannerEnvironment):
                 # CrossTrackReward(cross_track_reward_factor),
                 # PosExcessiveSpeedReward(None, reference_speed),
                 # NormGoalDistanceReward(.01)
-                GoalDistanceReward(None, strictly_pos=True),
+                GoalDistanceReward(1, strictly_pos=False),
                 # PathProgressReward(path_progress_factor),
                 # JerkReward(jerk_factor),
                 # AngularJerkReward(angular_jerk_factor),
             ],
             generate_map,
             time_step,
-            multiply_rwd=True,
+            multiply_rwd=False,
             **kwargs,
         )

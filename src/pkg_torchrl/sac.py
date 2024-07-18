@@ -2,11 +2,7 @@ import torch
 from torchrl.objectives.sac import SACLoss
 from torchrl.objectives import SoftUpdate
 
-from utils.torchrl.base import (
-    AlgoBase,
-    make_collector,
-    make_replay_buffer
-)
+from pkg_torchrl.base import AlgoBase
 
 
 class SAC(AlgoBase):
@@ -15,13 +11,6 @@ class SAC(AlgoBase):
         super().__init__(config, train_env, eval_env,
                          in_keys_actor=['observation'],
                          in_keys_value=['action', 'observation'])
-        self.replay_buffer = make_replay_buffer(
-            batch_size=self.config.batch_size,
-            prioritize=self.config.prioritize,
-            buffer_size=self.config.replay_buffer_size,
-            scratch_dir=self.config.scratch_dir,
-            device="cpu",
-        )
     
     def _init_loss_module(self):
         # Create SAC loss
@@ -44,23 +33,24 @@ class SAC(AlgoBase):
         critic_params = list(self.loss_module.qvalue_network_params.flatten_keys().values())
         actor_params = list(self.loss_module.actor_network_params.flatten_keys().values())
         
-        self.optimizers = {}
-        self.optimizers["actor"] = torch.optim.Adam(
-            actor_params,
-            lr=self.config.actor_lr,
-            weight_decay=self.config.weight_decay,
-            eps=self.config.adam_eps,
-        )
-        self.optimizers["critic"] = torch.optim.Adam(
-            critic_params,
-            lr=self.config.critic_lr,
-            weight_decay=self.config.weight_decay,
-            eps=self.config.adam_eps,
-        )
-        self.optimizers["alpha"] = torch.optim.Adam(
-            [self.loss_module.log_alpha],
-            lr=self.config.alpha_lr,
-        )
+        self.optim = {
+            "actor": torch.optim.Adam(
+                actor_params,
+                lr=self.config.actor_lr,
+                weight_decay=self.config.weight_decay,
+                eps=self.config.adam_eps,
+            ),
+            "critic": torch.optim.Adam(
+                critic_params,
+                lr=self.config.critic_lr,
+                weight_decay=self.config.weight_decay,
+                eps=self.config.adam_eps,
+            ),
+            "alpha": torch.optim.Adam(
+                [self.loss_module.log_alpha],
+                lr=self.config.alpha_lr,
+            )
+        }
 
     def _loss_backward(self, loss_td):
         actor_loss = loss_td["loss_actor"]
@@ -68,19 +58,19 @@ class SAC(AlgoBase):
         alpha_loss = loss_td["loss_alpha"]
 
         # Update actor
-        self.optimizers["actor"].zero_grad()
+        self.optim["actor"].zero_grad()
         actor_loss.backward()
-        self.optimizers["actor"].step()
+        self.optim["actor"].step()
 
         # Update critic
-        self.optimizers["critic"].zero_grad()
+        self.optim["critic"].zero_grad()
         q_loss.backward()
-        self.optimizers["critic"].step()
+        self.optim["critic"].step()
 
         # Update alpha
-        self.optimizers["alpha"].zero_grad()
+        self.optim["alpha"].zero_grad()
         alpha_loss.backward()
-        self.optimizers["alpha"].step()
+        self.optim["alpha"].step()
         return loss_td.select(
                         "loss_actor", "loss_qvalue", "loss_alpha"
                     ).detach()
@@ -90,7 +80,7 @@ class SAC(AlgoBase):
 
 if __name__ == '__main__':
     from pkg_ddpg_td3.utils.map import generate_map_dynamic
-    from utils.torchrl.env import make_env
+    from pkg_torchrl.env import make_env
     from configs import BaseConfig
 
     config =  BaseConfig()
