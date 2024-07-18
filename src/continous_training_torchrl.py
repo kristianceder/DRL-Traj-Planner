@@ -9,6 +9,7 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 """
 
 import os
+import copy
 import random
 import argparse
 from datetime import datetime
@@ -16,31 +17,33 @@ from pathlib import Path
 
 import wandb
 import torch
-from utils.plotresults import plot_training_results
-from torch import no_grad
 from pkg_ddpg_td3.utils.map import (
     generate_map_dynamic,
     generate_map_corridor,
     generate_map_mpc,
-    generate_map_eval
+    generate_map_eval,
+    generate_map_dynamic_explore,
 )
-from pkg_ddpg_td3.environment import MapDescription
-
 from utils.torchrl.env import make_env, render_rollout
 from utils.torchrl.sac import SAC
+from utils.torchrl.ppo import PPO
 
 from configs import BaseConfig
 
 
-# TODO (kilian):
-# - fix running on gpu device
-# - generalize RL part to easily implement other algos
+class ConstWrapper:
+    def __init__(self, generate_func):
+        self.out = generate_func()
+
+    def __call__(self):
+        return copy.deepcopy(self.out)
+
 
 def process_args():
     parser = argparse.ArgumentParser(
                     prog='DRL-Traj-Planner',
                     description='Mobile robot navigation',)
-    parser.add_argument('-lc', '--load-checkpoint',
+    parser.add_argument('-v', '--visualize',
                     action='store_true')
     parser.add_argument('-p', '--path', default=None, type=str)
 
@@ -53,33 +56,56 @@ def run():
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    train_env = make_env(config, generate_map=generate_map_eval, use_wandb=True)
-    eval_env = make_env(config, generate_map=generate_map_eval)#, use_wandb=True)
+    generate_map = generate_map_dynamic_explore
+    eval_map = generate_map
+    # eval_map = ConstWrapper(generate_map_dynamic) if not args.visualize else generate_map_dynamic
 
-    model = SAC(config.sac, train_env, eval_env)
+    train_env = make_env(config, generate_map=generate_map, use_wandb=True)
+    eval_env = make_env(config, generate_map=eval_map)#, use_wandb=True)
+
+    algo_config = getattr(config, config.algo.lower())
+    model = eval(config.algo.upper())(algo_config, train_env, eval_env)
     models_path = Path('../Model/testing')
 
-    if args.load_checkpoint:
+    if args.visualize:
         if args.path is None:
             # get latest path
-            path = max(models_path.glob('*/'), key=os.path.getmtime)
+            path = max(models_path.glob('*/'), key=os.path.getmtime) / "final_model.pth"
+            model.load(path)
+        elif args.path == 'pretrain':
+            path = '../Model/testing/pretrained_actor.pt'
+            actor_sd = torch.load(path)
+            model.model['policy'].load_state_dict(actor_sd)
         else:
-            path = models_path / args.path
+            path = models_path / args.path / "final_model.pth"
+            model.load(path)
 
-        print(f"Loading {path}")
-        path = path / "final_model.pth"
-        model.load(path)
+        print(f"Loaded {path}")
         render_rollout(eval_env, model, config, n_steps=3_000)
     else:
+        if args.path is not None:
+            if args.path == 'pretrain':
+                path = '../Model/testing/pretrained_actor.pt'
+                actor_sd = torch.load(path)
+                model.model['policy'].load_state_dict(actor_sd)
+                model.set_pretrained()
+            else:
+                path = models_path / args.path / "final_model.pth"
+                model.load(path)
+
         timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
-        path = models_path / f"{timestamp}_SAC"
+        path = models_path / f"{timestamp}_{config.algo.upper()}"
         path.mkdir(exist_ok=True, parents=True)
 
+        pt_str = "-pretrained" if args.path == 'pretrain' else ""
+        wandb_name = config.algo.lower() + pt_str + "-" + wandb.util.generate_id()
         _ = wandb.init(
             project="DRL-Traj-Planner",
             config=config.model_dump(),
-            tags="sac_exploration",
+            tags=["exploration"],
+            name=wandb_name,
         )
+        wandb.config["path"] = path
 
         model.train()
         model.save(f"{path}/final_model.pth")

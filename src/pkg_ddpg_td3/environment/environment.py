@@ -1,5 +1,6 @@
 from time import time
 from packaging import version
+import functools
 
 import wandb
 import gymnasium as gym
@@ -42,7 +43,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
     # Component producing external observations
     external_obs_component: Union[Component, None] = None
 
-    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2, use_wandb=False):
+    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2,
+                 use_wandb=False, multiply_rwd: bool = False):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -51,6 +53,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.generate_map = generate_map
         self.time_step = time_step
         self.use_wandb = use_wandb
+        self.multiply_rwd = multiply_rwd
         self.render_cnt = 0
         self.render_mode = "rgb_array"
 
@@ -144,7 +147,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         return len(path) > 0
 
     def get_info(self) -> dict:
-        return {"success": [self.reached_goal]}
+        return {"success": [self.reached_goal], 'collided': [self.collided]}
 
     def get_observation(self) -> dict:
         """Collects observations from all components and returns them"""
@@ -209,10 +212,19 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.update_status()
 
         observation = self.get_observation()
-        rwds = [c.step(action) for c in self.components]
+        c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
+        rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
+
         if self.use_wandb:
-            wandb.log({f'rewards/r{i}': val for i, val in enumerate(rwds)})
-        reward = float(sum(rwds))
+            wandb.log({f'rewards/{n}': val for n, val in rwd_dict.items()})
+        if self.multiply_rwd:
+            if self.reached_goal:
+                reward = rwd_dict['ReachGoalReward']
+            else:
+                reward = functools.reduce(lambda x, y: x * y, rwd_dict.values())
+        else:
+            reward = float(sum([r for r in rwd_dict.values()]))
+
         terminated = self.update_termination()
         info = self.get_info()
 

@@ -22,6 +22,12 @@ from .acceleration_reward import AccelerationReward
 from .angular_acceleration_reward import AngularAccelerationReward
 from .jerk_reward import JerkReward
 from .angular_jerk_reward import AngularJerkReward
+from .obstacle_distance_reward import ObstacleDistanceReward
+from .norm_goal_distance_reward import NormGoalDistanceReward
+from .goal_position_observation import GoalPositionObservation
+from .robot_position_observation import RobotPositionObservation
+from .reward_collision_binary import BinaryCollisionReward
+from .pos_excessive_speed_reward import PosExcessiveSpeedReward
 
 __all__ = [
     'Component',
@@ -46,5 +52,11 @@ __all__ = [
     'AccelerationReward',
     'AngularAccelerationReward',
     'JerkReward',
-    'AngularJerkReward'
+    'AngularJerkReward',
+    'ObstacleDistanceReward',
+    'NormGoalDistanceReward',
+    'GoalPositionObservation',
+    'RobotPositionObservation',
+    'BinaryCollisionReward',
+    'PosExcessiveSpeedReward',
 ]

@@ -5,9 +5,10 @@
 *.sif
 *.avi
 .vscode/
-mpc_solver/*
+mpc_solver/
 
 runs/
 wandb/
 .idea/
 Model/testing
+lightning_logs/

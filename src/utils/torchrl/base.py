@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
+import time
+import tqdm
+import torch
 
+import wandb
 import torch
 import torch.nn as nn
 
@@ -9,7 +13,6 @@ from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
 from torchrl.modules.distributions import TanhNormal
-from torchrl.objectives import SoftUpdate
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import TensorDictPrioritizedReplayBuffer, TensorDictReplayBuffer
 from torchrl.data.replay_buffers.storages import LazyMemmapStorage
@@ -26,11 +29,11 @@ def get_activation(activation):
         raise NotImplementedError
     
 
-def make_collector(config, train_env, actor_model_explore):
+def make_collector(config, train_env, actor_model_explore, is_pretrained):
     collector = SyncDataCollector(
         train_env,
         actor_model_explore,
-        init_random_frames=config.init_random_frames,
+        init_random_frames=None if is_pretrained else config.init_random_frames,
         frames_per_batch=config.frames_per_batch,
         total_frames=config.total_frames,
         device=config.device,
@@ -75,27 +78,44 @@ def make_replay_buffer(
 
 
 class AlgoBase(ABC):
-    def __init__(self, config, train_env, eval_env, in_keys=["observation"]):
+    def __init__(self, config, train_env, eval_env, in_keys_actor, in_keys_value):
         self.config = config
         self.train_env = train_env
         self.eval_env = eval_env
         self.device = torch.device(config.device)
-        self.in_keys = in_keys
+        self.in_keys_actor = in_keys_actor
+        self.in_keys_value = in_keys_value
 
         self._init_policy()
         self._init_loss_module()
-        self._post_init_loss_module()
         self._init_optimizer()
+        self._post_init_optimizer()
+        self.advantage_module = None
+        self.target_net_updater = None
+        self.is_pretrained = False
+
+        self.replay_buffer = make_replay_buffer(
+            batch_size=self.config.batch_size,
+            prioritize=self.config.prioritize,
+            buffer_size=self.config.replay_buffer_size,
+            scratch_dir=self.config.scratch_dir,
+            device="cpu",
+        )
 
     @abstractmethod
     def _init_loss_module(self):
         self.loss_module = None
         pass
-
+    
     @abstractmethod
-    def train(self, logger=None):
+    def _init_optimizer(self):
+        self.optim = None
         pass
     
+    @abstractmethod
+    def _loss_backward(self) -> torch.Tensor:
+        pass
+
     def get_action_dist(self, obs):
         if not isinstance(obs, TensorDict):
             obs = obs["observation"]
@@ -115,19 +135,22 @@ class AlgoBase(ABC):
             act = act_dist.sample()
         return act
     
-    def _post_init_loss_module(self):
-        self.loss_module.make_value_estimator(gamma=self.config.gamma)
+    def set_pretrained(self):
+        self.is_pretrained = True
 
-        self.target_net_updater = SoftUpdate(
-            self.loss_module, eps=self.config.target_update_polyak
-        )
+    def _post_init_optimizer(self):
+        if self.config.use_lr_schedule:
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optim, self.config.total_frames // self.config.frames_per_batch, 0.0
+            )
+        else:
+            self.scheduler = None
 
     def _init_policy(self):
         # Define Actor Network
-        in_keys = self.in_keys#["observation"]
         action_spec = self.train_env.action_spec
         obs_size = 0
-        for key in self.in_keys:
+        for key in self.in_keys_actor:
             obs_size += self.train_env.observation_spec[key].shape[-1]
         action_size = action_spec.shape[-1]
         if self.train_env.batch_size:
@@ -154,10 +177,9 @@ class AlgoBase(ABC):
         )
         actor_net = nn.Sequential(actor_net, actor_extractor)
 
-        in_keys_actor = in_keys
         actor_module = TensorDictModule(
             actor_net,
-            in_keys=in_keys_actor,
+            in_keys=self.in_keys_actor,
             out_keys=[
                 "loc",
                 "scale",
@@ -170,12 +192,12 @@ class AlgoBase(ABC):
             distribution_class=dist_class,
             distribution_kwargs=dist_kwargs,
             default_interaction_type=InteractionType.RANDOM,
-            return_log_prob=False,
+            return_log_prob=True,
         )
 
         # Define Critic Network
         qvalue_net_kwargs = {
-            "in_features": (obs_size + action_size),
+            "in_features": (obs_size + action_size) if 'action' in self.in_keys_value else obs_size,
             "num_cells": self.config.hidden_sizes,
             "out_features": 1,
             "activation_class": get_activation(self.config.activation),
@@ -186,7 +208,7 @@ class AlgoBase(ABC):
         )
 
         qvalue = ValueOperator(
-            in_keys=["action"] + in_keys,
+            in_keys=self.in_keys_value,
             module=qvalue_net,
         )
 
@@ -204,28 +226,145 @@ class AlgoBase(ABC):
         del td
         self.train_env.close()
 
+    def train(self, use_wandb=True):
+        # Create off-policy collector
+        collector = make_collector(self.config, self.train_env, self.model["policy"], self.is_pretrained)
 
-    def _init_optimizer(self):
-        critic_params = list(self.loss_module.qvalue_network_params.flatten_keys().values())
-        actor_params = list(self.loss_module.actor_network_params.flatten_keys().values())
-        
-        self.optimizers = {}
-        self.optimizers["actor"] = torch.optim.Adam(
-            actor_params,
-            lr=self.config.actor_lr,
-            weight_decay=self.config.weight_decay,
-            eps=self.config.adam_eps,
+        # Main loop
+        start_time = time.time()
+        collected_frames = 0
+        pbar = tqdm.tqdm(total=self.config.total_frames)
+
+        num_updates = int(
+            self.config.env_per_collector
+            * self.config.frames_per_batch
+            * self.config.utd_ratio
         )
-        self.optimizers["critic"] = torch.optim.Adam(
-            critic_params,
-            lr=self.config.critic_lr,
-            weight_decay=self.config.weight_decay,
-            eps=self.config.adam_eps,
-        )
-        self.optimizers["alpha"] = torch.optim.Adam(
-            [self.loss_module.log_alpha],
-            lr=3.0e-4,
-        )
+        prioritize = self.config.prioritize
+        eval_iter = self.config.eval_iter
+        frames_per_batch = self.config.frames_per_batch
+        eval_rollout_steps = self.config.max_eps_steps
+
+        sampling_start = time.time()
+        for i, tensordict in enumerate(collector):
+            sampling_time = time.time() - sampling_start
+
+            # Update weights of the inference policy
+            collector.update_policy_weights_()
+
+            if self.advantage_module is not None:
+                self.advantage_module(tensordict)
+
+            pbar.update(tensordict.numel())
+
+            tensordict = tensordict.reshape(-1)
+            current_frames = tensordict.numel()
+            # Add to replay buffer
+            self.replay_buffer.extend(tensordict.cpu())
+            collected_frames += current_frames
+
+            # Optimization steps
+            training_start = time.time()
+            if collected_frames >= self.config.init_env_steps:
+                losses = TensorDict({}, batch_size=[num_updates])
+                for i in range(num_updates):
+                    # Sample from replay buffer
+                    sampled_tensordict = self.replay_buffer.sample()
+                    if sampled_tensordict.device != self.device:
+                        sampled_tensordict = sampled_tensordict.to(
+                            self.device, non_blocking=True
+                        )
+                    else:
+                        sampled_tensordict = sampled_tensordict.clone()
+
+                    # Compute loss
+                    loss_td = self.loss_module(sampled_tensordict)
+
+                    loss = self._loss_backward(loss_td)
+                    losses[i] = loss
+
+                    # Update qnet_target params
+                    if self.target_net_updater is not None:
+                        self.target_net_updater.step()
+
+                    # Update priority
+                    if prioritize:
+                        self.replay_buffer.update_priority(sampled_tensordict)
+
+            training_time = time.time() - training_start
+            episode_end = tensordict["next", "done"]
+            # (
+                # tensordict["next", "done"]
+            #     or tensordict["next", "truncated"]
+            #     or tensordict["next", "terminated"]
+            # )
+            episode_rewards = tensordict["next", "episode_reward"][episode_end]
+            episode_success = tensordict["next", "success"][episode_end]
+            episode_collided = tensordict["next", "collided"][episode_end]
+
+            # Logging
+            metrics_to_log = {}
+            if len(episode_rewards) > 0:
+                episode_length = tensordict["next", "step_count"][episode_end]
+                metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
+                metrics_to_log["train/episode_success"] = episode_success.float().mean().item()
+                metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
+                metrics_to_log["train/reward"] = tensordict["next", "reward"].mean().item()
+                metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
+                    episode_length
+                )
+                # TODO log lr
+                # self.optim.param_groups[0]["lr"]
+            if collected_frames >= self.config.init_env_steps:
+                for k in losses.keys():
+                    metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
+                # TODO fix this
+                # metrics_to_log["train/alpha"] = loss_td["alpha"].item()
+                metrics_to_log["train/entropy"] = loss_td["entropy"].item()
+                metrics_to_log["train/sampling_time"] = sampling_time
+                metrics_to_log["train/training_time"] = training_time
+
+            # Evaluation
+            if abs(collected_frames % eval_iter) < frames_per_batch:
+                with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+                    eval_start = time.time()
+                    eval_rollout = self.eval_env.rollout(
+                        eval_rollout_steps,
+                        self.model["policy"],
+                        auto_cast_to_device=True,
+                        break_when_any_done=True,
+                    )
+                    eval_time = time.time() - eval_start
+                    eval_reward = eval_rollout["next", "reward"].mean().item()
+                    eval_episode_end = eval_rollout["next", "done"]
+                    # (
+                    #     eval_rollout["next", "done"]
+                    #     or eval_rollout["next", "truncated"]
+                    #     or eval_rollout["next", "terminated"]
+                    # )
+                    eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
+                    eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
+                    eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
+                    eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
+
+                    metrics_to_log["eval/episode_reward"] = eval_episode_rewards.mean().item()
+                    metrics_to_log["eval/episode_length"] = eval_episode_len
+                    metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
+                    metrics_to_log["eval/reward"] = eval_reward
+                    metrics_to_log["eval/time"] = eval_time
+            
+            if use_wandb:
+                wandb.log(metrics_to_log, step=collected_frames)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+            sampling_start = time.time()
+
+        collector.shutdown()
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Training took {execution_time:.2f} seconds to finish")
 
     def save(self, path):
         torch.save(self.model.state_dict(), path)
