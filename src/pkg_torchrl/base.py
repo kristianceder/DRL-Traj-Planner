@@ -13,7 +13,53 @@ from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
 from torchrl.modules.distributions import TanhNormal
 
-from .utils import get_activation, make_collector, make_replay_buffer
+from .utils import get_activation, make_collector, make_replay_buffer, reset_actor
+
+
+def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True):
+    action_size = action_spec.shape[-1]
+
+    actor_net_kwargs = {
+        "in_features": obs_size,
+        "num_cells": config.hidden_sizes,
+        "out_features": 2 * action_size,
+        "activation_class": get_activation(config.activation),
+        "dropout": config.actor_dropout,
+    }
+
+    actor_net = MLP(**actor_net_kwargs)
+
+    dist_class = TanhNormal
+    dist_kwargs = {
+        "min": action_spec.space.low,
+        "max": action_spec.space.high,
+        "tanh_loc": False,
+    }
+
+    actor_extractor = NormalParamExtractor(
+        scale_mapping=f"biased_softplus_{config.default_policy_scale}",
+        scale_lb=config.scale_lb,
+    )
+    actor_net = nn.Sequential(actor_net, actor_extractor)
+
+    actor_module = TensorDictModule(
+        actor_net,
+        in_keys=in_keys_actor,
+        out_keys=[
+            "loc",
+            "scale",
+        ],
+    )
+    actor = ProbabilisticActor(
+        spec=action_spec,
+        in_keys=["loc", "scale"],
+        module=actor_module,
+        distribution_class=dist_class,
+        distribution_kwargs=dist_kwargs,
+        default_interaction_type=InteractionType.RANDOM if use_random_interaction else InteractionType.MODE,
+        return_log_prob=True,
+    )
+    return actor
 
 
 class AlgoBase(ABC):
@@ -97,52 +143,15 @@ class AlgoBase(ABC):
         action_size = action_spec.shape[-1]
         if self.train_env.batch_size:
             action_spec = action_spec[(0,) * len(self.train_env.batch_size)]
-        actor_net_kwargs = {
-            "in_features": obs_size,
-            "num_cells": self.config.hidden_sizes,
-            "out_features": 2 * action_size,
-            "activation_class": get_activation(self.config.activation),
-        }
 
-        actor_net = MLP(**actor_net_kwargs)
-
-        dist_class = TanhNormal
-        dist_kwargs = {
-            "min": action_spec.space.low,
-            "max": action_spec.space.high,
-            "tanh_loc": False,
-        }
-
-        actor_extractor = NormalParamExtractor(
-            scale_mapping=f"biased_softplus_{self.config.default_policy_scale}",
-            scale_lb=self.config.scale_lb,
-        )
-        actor_net = nn.Sequential(actor_net, actor_extractor)
-
-        actor_module = TensorDictModule(
-            actor_net,
-            in_keys=self.in_keys_actor,
-            out_keys=[
-                "loc",
-                "scale",
-            ],
-        )
-        actor = ProbabilisticActor(
-            spec=action_spec,
-            in_keys=["loc", "scale"],
-            module=actor_module,
-            distribution_class=dist_class,
-            distribution_kwargs=dist_kwargs,
-            default_interaction_type=InteractionType.RANDOM,
-            return_log_prob=True,
-        )
-
+        actor = build_actor(obs_size, action_spec, self.in_keys_actor, self.config)
         # Define Critic Network
         qvalue_net_kwargs = {
             "in_features": (obs_size + action_size) if 'action' in self.in_keys_value else obs_size,
             "num_cells": self.config.hidden_sizes,
             "out_features": 1,
             "activation_class": get_activation(self.config.activation),
+            "dropout": self.config.critic_dropout,
         }
 
         qvalue_net = MLP(
@@ -177,6 +186,7 @@ class AlgoBase(ABC):
         start_time = time.time()
         collected_frames = 0
         pbar = tqdm.tqdm(total=self.config.total_frames)
+        last_success_rate = 0.0
 
         num_updates = int(
             self.config.env_per_collector
@@ -198,6 +208,7 @@ class AlgoBase(ABC):
             if self.advantage_module is not None:
                 self.advantage_module(tensordict)
 
+            pbar.set_description(f"success: {last_success_rate:.2f}", refresh=False)
             pbar.update(tensordict.numel())
 
             tensordict = tensordict.reshape(-1)
@@ -209,6 +220,8 @@ class AlgoBase(ABC):
             # Optimization steps
             training_start = time.time()
             if collected_frames >= self.config.init_env_steps:
+                if self.config.n_reset_layers is not None:
+                    reset_actor(self.model["policy"], self.config.n_reset_layers)
                 losses = TensorDict({}, batch_size=[num_updates])
                 for i in range(num_updates):
                     # Sample from replay buffer
@@ -224,6 +237,10 @@ class AlgoBase(ABC):
                     loss_td = self.loss_module(sampled_tensordict)
 
                     loss = self._loss_backward(loss_td)
+                    # if use_wandb:
+                    #     loss_log = {f"losses/{k}": loss.get(k).mean().item() for k in loss.keys()}
+                    #     wandb.log(loss_log, step=collected_frames)
+
                     losses[i] = loss
 
                     # Update qnet_target params
@@ -232,7 +249,9 @@ class AlgoBase(ABC):
 
                     # Update priority
                     if prioritize:
-                        self.replay_buffer.update_priority(sampled_tensordict)
+                        sampled_tensordict.set(
+                            "loss_critic", loss["loss_critic"] * torch.ones(sampled_tensordict.shape))
+                        self.replay_buffer.update_tensordict_priority(sampled_tensordict)
 
             training_time = time.time() - training_start
             episode_end = tensordict["next", "done"]
@@ -245,7 +264,8 @@ class AlgoBase(ABC):
             if len(episode_rewards) > 0:
                 episode_length = tensordict["next", "step_count"][episode_end]
                 metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
-                metrics_to_log["train/episode_success"] = episode_success.float().mean().item()
+                last_success_rate = episode_success.float().mean().item()
+                metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
                 metrics_to_log["train/reward"] = tensordict["next", "reward"].mean().item()
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(

@@ -31,6 +31,11 @@ from pkg_torchrl.ppo import PPO
 from configs import BaseConfig
 
 
+# TODO (kilian)
+# increasing discout factor
+# n-step schedule
+
+
 class ConstWrapper:
     def __init__(self, generate_func):
         self.out = generate_func()
@@ -57,12 +62,10 @@ def run():
     torch.manual_seed(config.seed)
 
     generate_map = generate_map_dynamic_explore
-    eval_map = generate_map
-    # eval_map = ConstWrapper(generate_map_dynamic) if not args.visualize else generate_map_dynamic
+    # eval_map = ConstWrapper(generate_map_dynamic)
 
     train_env = make_env(config, generate_map=generate_map, use_wandb=True)
-    eval_env = make_env(config, generate_map=eval_map)
-
+    eval_env = make_env(config, generate_map=generate_map)
     env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())

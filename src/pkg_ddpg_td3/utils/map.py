@@ -188,7 +188,8 @@ def generate_map_dynamic_explore() -> MapDescription:
     y2 = 10.
     rx = .5
     ry = 2.
-    freq = 0.0000001#random.uniform(0.2, 0.5)
+    # freq = 0.0000001
+    freq = random.uniform(0.1, 0.3)
     angle = math.pi
     obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
     

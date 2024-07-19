@@ -30,7 +30,7 @@ class PPO(AlgoBase):
         )
 
     def _init_optimizer(self):
-        self.optim = torch.optim.Adam(
+        self.optim = torch.optim.AdamW(
             self.loss_module.parameters(),
             self.config.lr,
             weight_decay=self.config.weight_decay,

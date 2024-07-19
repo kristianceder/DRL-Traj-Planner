@@ -17,23 +17,25 @@ class RLConfig(BaseModel):
 
     # replay
     replay_buffer_size: int = 5_000
-    prioritize: bool = False
+    prioritize: bool = True
     scratch_dir: None = None
     prefetch: Optional[int] = None
 
     # nets
     hidden_sizes: list = [32, 32, 32]
     activation: str = "tanh"  # choices: "relu", "tanh", "leaky_relu"
+    actor_dropout: Optional[float] = None
+    critic_dropout: Optional[float] = None
     default_policy_scale: float = 1.0
     scale_lb: float = 0.1
     device: Optional[str] = None
     collector_device: Optional[str] = None
 
     # optim
-    utd_ratio: float = 1.0
+    utd_ratio: float = 3.0
     gamma: float = 0.99
     batch_size: int = 256
-    weight_decay: float = 0.0
+    weight_decay: float = 0.1
     adam_eps: float = 1.0e-8
 
     # eval
@@ -43,9 +45,12 @@ class RLConfig(BaseModel):
     use_lr_schedule: bool = False
     first_reduce_frame: int = 10_000
 
+    # network resets
+    n_reset_layers: Optional[int] = 2
+
 
 class SACConfig(RLConfig):
-    loss_function: str = "l2"
+    loss_function: str = "smooth_l1"  # "l2"
     actor_lr: float = 3.0e-4
     critic_lr: float = 3.0e-4
     alpha_lr: float = 3.0e-4

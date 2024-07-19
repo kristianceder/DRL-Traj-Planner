@@ -1,12 +1,3 @@
-
-import math
-from collections import defaultdict
-
-import numpy as np
-import gymnasium as gym
-from shapely.geometry import LineString
-from shapely import Point
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,77 +6,29 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 
 from tensordict import TensorDict
-from torchrl.modules import MLP, ProbabilisticActor
-from torchrl.modules.distributions import TanhNormal
-from tensordict.nn.distributions import NormalParamExtractor
-from tensordict.nn import InteractionType, TensorDictModule
 
-from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_static
-from pkg_torchrl.base import get_activation
+from pkg_ddpg_td3.utils.map import generate_map_static
+from pkg_torchrl.base import build_actor
 from pkg_torchrl.env import make_env
 from pkg_torchrl.pretrain import SimpleController, rollout
 
 from configs import BaseConfig
 
 
-def build_actor(train_env, in_keys, config):
-        action_spec = train_env.action_spec
-        obs_size = 0
-        for key in in_keys:
-            obs_size += train_env.observation_spec[key].shape[-1]
-        action_size = action_spec.shape[-1]
-        if train_env.batch_size:
-            action_spec = action_spec[(0,) * len(train_env.batch_size)]
-
-        actor_net_kwargs = {
-            "in_features": obs_size,
-            "num_cells": config.hidden_sizes,
-            "out_features": 2 * action_size,
-            "activation_class": get_activation(config.activation),
-        }
-
-        actor_net = MLP(**actor_net_kwargs)
-
-        dist_class = TanhNormal
-        dist_kwargs = {
-            "min": action_spec.space.low,
-            "max": action_spec.space.high,
-            "tanh_loc": False,
-        }
-
-        actor_extractor = NormalParamExtractor(
-            scale_mapping=f"biased_softplus_{config.default_policy_scale}",
-            scale_lb=config.scale_lb,
-        )
-        actor_net = nn.Sequential(actor_net, actor_extractor)
-
-        in_keys_actor = in_keys
-        actor_module = TensorDictModule(
-            actor_net,
-            in_keys=in_keys_actor,
-            out_keys=[
-                "loc",
-                "scale",
-            ],
-        )
-        actor = ProbabilisticActor(
-            spec=action_spec,
-            in_keys=["loc", "scale"],
-            module=actor_module,
-            distribution_class=dist_class,
-            distribution_kwargs=dist_kwargs,
-            default_interaction_type=InteractionType.MODE,
-            return_log_prob=False,
-        )
-        return actor
-
-
-
 class BC(L.LightningModule):
     def __init__(self, train_env, config):
         super().__init__()
         self.lr = config.pretrain.lr
-        self.actor = build_actor(train_env, in_keys=['observation'], config=config.sac)
+
+        in_keys = ['observation']
+        action_spec = train_env.action_spec
+        obs_size = 0
+        for key in in_keys:
+            obs_size += train_env.observation_spec[key].shape[-1]
+        if train_env.batch_size:
+            action_spec = action_spec[(0,) * len(train_env.batch_size)]
+
+        self.actor = build_actor(obs_size, action_spec, in_keys, config.sac, use_random_interaction=False)
         self.criterion = nn.MSELoss()
 
     def forward(self, x):
@@ -108,7 +51,7 @@ class BC(L.LightningModule):
         return {'val_loss': loss}
     
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.lr)#, weight_decay=0.01)
+        optimizer = optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
 
 
