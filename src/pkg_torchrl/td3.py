@@ -1,28 +1,27 @@
 import torch
-from torchrl.objectives.sac import SACLoss
+from torchrl.objectives.td3 import TD3Loss
 from torchrl.objectives import SoftUpdate
 
 from pkg_torchrl.base import AlgoBase
 
 
-class SAC(AlgoBase):
-    """Soft actor critic trainer"""
+class TD3(AlgoBase):
+    """PPO actor critic trainer"""
     def __init__(self, config, train_env, eval_env):
         super().__init__(config, train_env, eval_env,
                          in_keys_actor=['observation'],
-                         in_keys_value=['action', 'observation'])
-    
+                         in_keys_value=['observation', 'action'])
+            
     def _init_loss_module(self):
         # Create SAC loss
-        self.loss_module = SACLoss(
+        self.loss_module = TD3Loss(
             actor_network=self.model["policy"],
             qvalue_network=self.model["value"],
-            num_qvalue_nets=2,
+            action_spec=self.model["policy"].spec,
+            policy_noise=self.config.policy_noise,
+            noise_clip=self.config.noise_clip,
             loss_function=self.config.loss_function,
-            delay_actor=False,
-            delay_qvalue=True,
-            alpha_init=self.config.alpha_init,
-            min_alpha=self.config.min_alpha,
+            # priority_key=None,
         )
         self.loss_module.make_value_estimator(gamma=self.config.gamma)
 
@@ -33,7 +32,6 @@ class SAC(AlgoBase):
     def _init_optimizer(self):
         critic_params = list(self.loss_module.qvalue_network_params.flatten_keys().values())
         actor_params = list(self.loss_module.actor_network_params.flatten_keys().values())
-        
         self.optim = {
             "actor": torch.optim.Adam(
                 actor_params,
@@ -47,28 +45,28 @@ class SAC(AlgoBase):
                 weight_decay=self.config.weight_decay,
                 eps=self.config.adam_eps,
             ),
-            "alpha": torch.optim.Adam(
-                [self.loss_module.log_alpha],
-                lr=self.config.alpha_lr,
-            )
         }
 
     def _loss_backward(self, loss_td):
-        loss_keys = ["loss_actor", "loss_critic", "loss_alpha"]
-        optim_keys = ["actor", "critic", "alpha"]
+        # Update actor
+        actor_loss = loss_td["loss_actor"]
+        actor_loss.backward()
+        params = self.optim["actor"].param_groups[0]["params"]
+        torch.nn.utils.clip_grad_norm_(params, self.config.max_grad_norm)
 
-        for l_key, o_key in zip(loss_keys, optim_keys):
-            loss = loss_td[l_key]
-            optim = self.optim[o_key]
-            loss.backward()
-            params = optim.param_groups[0]["params"]
-            torch.nn.utils.clip_grad_norm_(params, self.config.max_grad_norm)
-            optim.step()
-            optim.zero_grad()
+        self.optim["actor"].step()
+        self.optim["actor"].zero_grad()
 
-        return loss_td.select(*loss_keys).detach()
-    
-   
+        # Update critic
+        q_loss = loss_td["loss_qvalue"]
+        q_loss.backward()
+        params = self.optim["critic"].param_groups[0]["params"]
+        torch.nn.utils.clip_grad_norm_(params, self.config.max_grad_norm)
+
+        self.optim["critic"].step()
+        self.optim["critic"].zero_grad()
+
+        return loss_td.select("loss_actor", "loss_qvalue").detach()
 
 
 if __name__ == '__main__':
@@ -76,12 +74,11 @@ if __name__ == '__main__':
     from pkg_torchrl.env import make_env
     from configs import BaseConfig
 
-    config =  BaseConfig()
+    config = BaseConfig()
     train_env = make_env(generate_map_dynamic, config)
     eval_env = make_env(generate_map_dynamic, config)
 
-    model = SAC(config.sac, train_env, eval_env)
+    model = TD3(config.td3, train_env, eval_env)
 
     model.train(wandb=False)
-
-    model.save('sac.pth')
+    model.save('td3.pth')

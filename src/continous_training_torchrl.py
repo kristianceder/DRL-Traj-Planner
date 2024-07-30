@@ -9,7 +9,6 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 """
 
 import os
-import copy
 import random
 import argparse
 from datetime import datetime
@@ -27,21 +26,16 @@ from pkg_ddpg_td3.utils.map import (
 from pkg_torchrl.env import make_env, render_rollout
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.ppo import PPO
+from pkg_torchrl.td3 import TD3
+# from pkg_torchrl.utils import ConstWrapper
 
 from configs import BaseConfig
 
 
 # TODO (kilian)
-# increasing discout factor
+# make speed of obstacles a parameter
+# increasing discount factor
 # n-step schedule
-
-
-class ConstWrapper:
-    def __init__(self, generate_func):
-        self.out = generate_func()
-
-    def __call__(self):
-        return copy.deepcopy(self.out)
 
 
 def process_args():

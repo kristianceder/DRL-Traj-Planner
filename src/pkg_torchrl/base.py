@@ -13,7 +13,7 @@ from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
 from torchrl.modules.distributions import TanhNormal
 
-from .utils import get_activation, make_collector, make_replay_buffer, reset_actor
+from .utils import get_activation, make_collector, make_replay_buffer, reset_actor, reset_critic
 
 
 def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True):
@@ -71,13 +71,14 @@ class AlgoBase(ABC):
         self.in_keys_actor = in_keys_actor
         self.in_keys_value = in_keys_value
 
+        self.advantage_module = None
+        self.target_net_updater = None
+        self.is_pretrained = False
+
         self._init_policy()
         self._init_loss_module()
         self._init_optimizer()
         self._post_init_optimizer()
-        self.advantage_module = None
-        self.target_net_updater = None
-        self.is_pretrained = False
 
         self.replay_buffer = make_replay_buffer(
             batch_size=self.config.batch_size,
@@ -222,6 +223,8 @@ class AlgoBase(ABC):
             if collected_frames >= self.config.init_env_steps:
                 if self.config.n_reset_layers is not None:
                     reset_actor(self.model["policy"], self.config.n_reset_layers)
+                if self.config.n_reset_layers_critic is not None:
+                    reset_critic(self.model["value"], self.config.n_reset_layers_critic)
                 losses = TensorDict({}, batch_size=[num_updates])
                 for i in range(num_updates):
                     # Sample from replay buffer
@@ -249,8 +252,9 @@ class AlgoBase(ABC):
 
                     # Update priority
                     if prioritize:
+                        loss_key = "loss_critic" if "loss_critic" in loss else "loss_qvalue"
                         sampled_tensordict.set(
-                            "loss_critic", loss["loss_critic"] * torch.ones(sampled_tensordict.shape))
+                            loss_key, loss[loss_key] * torch.ones(sampled_tensordict.shape))
                         self.replay_buffer.update_tensordict_priority(sampled_tensordict)
 
             training_time = time.time() - training_start
@@ -280,9 +284,12 @@ class AlgoBase(ABC):
             if collected_frames >= self.config.init_env_steps:
                 for k in losses.keys():
                     metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
+                # for k, v in loss_td.items():
+                #     metrics_to_log[f"train/{k}"] = v.item()
                 if "alpha" in loss_td.keys():
                     metrics_to_log["train/alpha"] = loss_td["alpha"].item()
-                metrics_to_log["train/entropy"] = loss_td["entropy"].item()
+                if "entropy" in loss_td.keys():
+                    metrics_to_log["train/entropy"] = loss_td["entropy"].item()
                 metrics_to_log["train/sampling_time"] = sampling_time
                 metrics_to_log["train/training_time"] = training_time
 

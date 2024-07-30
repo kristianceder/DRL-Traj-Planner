@@ -4,7 +4,7 @@ from typing import Optional
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
-    max_eps_steps: int = 400
+    max_eps_steps: int = 300
 
     # collector
     total_frames: int = 100_000
@@ -16,8 +16,6 @@ class RLConfig(BaseModel):
     use_multicollector: bool = False
 
     # replay
-    replay_buffer_size: int = 5_000
-    prioritize: bool = True
     scratch_dir: None = None
     prefetch: Optional[int] = None
 
@@ -32,30 +30,55 @@ class RLConfig(BaseModel):
     collector_device: Optional[str] = None
 
     # optim
-    utd_ratio: float = 3.0
     gamma: float = 0.99
-    batch_size: int = 256
-    weight_decay: float = 0.1
+    weight_decay: float = 0.0
     adam_eps: float = 1.0e-8
+    max_grad_norm: float = 1.0
+    loss_function: str = "smooth_l1"
 
     # eval
-    eval_iter: int = 10_000
+    eval_iter: int = 200_000
 
     # lr schedule
     use_lr_schedule: bool = False
     first_reduce_frame: int = 10_000
 
-    # network resets
-    n_reset_layers: Optional[int] = 2
-
 
 class SACConfig(RLConfig):
-    loss_function: str = "smooth_l1"  # "l2"
     actor_lr: float = 3.0e-4
     critic_lr: float = 3.0e-4
     alpha_lr: float = 3.0e-4
     target_update_polyak: float = 0.995
     alpha_init: float = 1.0
+    min_alpha: Optional[float] = None
+
+    # shared parameters
+    replay_buffer_size: int = 100_000
+    prioritize: bool = False
+    batch_size: int = 256
+    utd_ratio: float = 1.0
+
+    # network resets
+    n_reset_layers: Optional[int] = None
+    n_reset_layers_critic: Optional[int] = None
+
+
+class TD3Config(RLConfig):
+    actor_lr: float = 3.0e-4
+    critic_lr: float = 3.0e-4
+    target_update_polyak: float = 0.995
+    policy_noise: float = 0.2
+    noise_clip: float = 0.5
+
+    # shared parameters
+    replay_buffer_size: int = 100_000
+    prioritize: bool = False
+    batch_size: int = 256
+    utd_ratio: float = 1.0
+
+    # network resets
+    n_reset_layers: Optional[int] = None
+    n_reset_layers_critic: Optional[int] = None
 
 
 class PPOConfig(RLConfig):
@@ -67,10 +90,20 @@ class PPOConfig(RLConfig):
     critic_coef: float = 1.0,
     loss_critic_type: str = "smooth_l1",
     normalize_advantage: bool = False,
-    max_grad_norm: float = 1.0
+    weight_decay: float = 0.1
 
     # GAE
     lmbda: float = 0.95
+
+    # shared parameters
+    replay_buffer_size: int = 5_000
+    prioritize: bool = True
+    batch_size: int = 256
+    utd_ratio: float = 3.0
+
+    # network resets
+    n_reset_layers: Optional[int] = 2
+    n_reset_layers_critic: Optional[int] = None
 
 
 class PretrainConfig(BaseModel):
@@ -88,11 +121,12 @@ class BaseConfig(BaseModel):
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    algo: str = "ppo"
+    algo: str = "td3"
 
     pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()
     ppo: PPOConfig = PPOConfig()
+    td3: TD3Config = TD3Config()
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -103,6 +137,9 @@ class BaseConfig(BaseModel):
         self.ppo.seed = self.seed
         self.ppo.device = self.device
         self.ppo.collector_device = self.collector_device
+        self.td3.seed = self.seed
+        self.td3.device = self.device
+        self.td3.collector_device = self.collector_device
 
         if self.algo == "ppo":
             assert self.ppo.replay_buffer_size == self.ppo.frames_per_batch, \
