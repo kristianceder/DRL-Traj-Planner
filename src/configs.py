@@ -7,9 +7,10 @@ class RLConfig(BaseModel):
     max_eps_steps: int = 300
 
     # collector
-    total_frames: int = 100_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
-    frames_per_batch: int = 5_000
+    # init_e_greedy: float = 0.2
+    frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
     env_per_collector: int = 1
     reset_at_each_iter: bool = False
@@ -42,6 +43,7 @@ class RLConfig(BaseModel):
     # lr schedule
     use_lr_schedule: bool = False
     first_reduce_frame: int = 10_000
+    eta_min: Optional[float] = 1e-6  # minimum learning rate
 
 
 class SACConfig(RLConfig):
@@ -73,7 +75,7 @@ class TD3Config(RLConfig):
     # shared parameters
     replay_buffer_size: int = 100_000
     prioritize: bool = False
-    batch_size: int = 256
+    batch_size: int = 128
     utd_ratio: float = 1.0
 
     # network resets
@@ -83,26 +85,26 @@ class TD3Config(RLConfig):
 
 class PPOConfig(RLConfig):
     lr: float = 3.0e-4
-    clip_epsilon: float = 0.2,
-    entropy_bonus: bool = True,
-    samples_mc_entropy: int = 1,
-    entropy_coef: float = 0.01,
-    critic_coef: float = 1.0,
-    loss_critic_type: str = "smooth_l1",
-    normalize_advantage: bool = False,
-    weight_decay: float = 0.1
+    clip_epsilon: float = 0.2
+    entropy_bonus: bool = True
+    samples_mc_entropy: int = 1
+    entropy_coef: float = 0.01
+    critic_coef: float = 1.0
+    normalize_advantage: bool = False
+    weight_decay: float = 0.0
 
     # GAE
     lmbda: float = 0.95
 
     # shared parameters
-    replay_buffer_size: int = 5_000
-    prioritize: bool = True
-    batch_size: int = 256
-    utd_ratio: float = 3.0
+    frames_per_batch: int = 1_000
+    replay_buffer_size: int = 1_000
+    prioritize: bool = False
+    batch_size: int = 64
+    utd_ratio: float = 1.0
 
     # network resets
-    n_reset_layers: Optional[int] = 2
+    n_reset_layers: Optional[int] = None
     n_reset_layers_critic: Optional[int] = None
 
 
@@ -114,8 +116,12 @@ class PretrainConfig(BaseModel):
 
 
 class BaseConfig(BaseModel):
-    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v0"
-    seed: int = 10
+    # v0 is original rewards, v1 is minimal
+    # env 1 is original observations, 3 is updated
+    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v2"
+    # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
+    map_key: str = 'dynamic_convex_obstacle'
+    seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"
     use_vec_norm: bool = False
