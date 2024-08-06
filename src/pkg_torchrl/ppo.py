@@ -25,7 +25,7 @@ class PPO(AlgoBase):
             entropy_bonus=self.config.entropy_bonus,
             entropy_coef=self.config.entropy_coef,
             critic_coef=self.config.critic_coef,
-            # loss_critic_type=self.config.loss_critic_type,
+            loss_critic_type=self.config.loss_function,
             normalize_advantage=self.config.normalize_advantage,
         )
 

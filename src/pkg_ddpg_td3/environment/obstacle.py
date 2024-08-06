@@ -265,7 +265,7 @@ class Obstacle:
         else:
             left = .5
             right = .5
-            thickness = r / 2
+            thickness = r / 1.5
         u_shape = np.array([[-r, -right], [-r, r], [r, r],[r, -left],[thickness, -left], [thickness, thickness], [-thickness, thickness], [-thickness, -right]])
         scaling_factor = 1 + random.uniform(0,1) if use_random else 1.5
         nodes = u_shape*scaling_factor

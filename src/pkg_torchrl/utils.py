@@ -1,7 +1,7 @@
 import copy
 import torch
 import torch.nn as nn
-
+from torchrl.modules import EGreedyModule
 from torchrl.collectors import SyncDataCollector, MultiSyncDataCollector
 from torchrl.data import TensorDictPrioritizedReplayBuffer, TensorDictReplayBuffer
 from torchrl.data.replay_buffers.storages import LazyMemmapStorage
@@ -43,6 +43,11 @@ def get_activation(activation):
 
 
 def make_collector(config, train_env, actor_model_explore, is_pretrained, env_maker=None):
+    # e_greedy = EGreedyModule(spec=actor_model.spec,
+    #                          eps_init=config.init_e_greedy,
+    #                          eps_end=0.0,
+    #                          annealing_num_steps=config.init_random_frames)
+    # actor_model_explore = TensorDictSequential(actor_model, e_greedy)
     if config.use_multicollector:
         if env_maker is None:
             raise ValueError("env_maker must be provided if using multicollector")

@@ -3,10 +3,10 @@ from .. import MapGenerator, MobileRobot
 from ..environment import TrajectoryPlannerEnvironment
 
 
-class TrajectoryPlannerEnvironmentRaysReward3(TrajectoryPlannerEnvironment):
+class TrajectoryPlannerEnvironmentRaysReward4(TrajectoryPlannerEnvironment):
     """
     Environment with what the associated report describes as ray and sector
-    observations and reward R_3
+    observations O_1 and reward R_3. Same rewards as version 3 but with observations of version 1
     """
     def __init__(
         self,
@@ -15,14 +15,12 @@ class TrajectoryPlannerEnvironmentRaysReward3(TrajectoryPlannerEnvironment):
         reference_path_sample_offset: float = 0,
         corner_samples: int = 3,
         use_memory: bool = True,
-        num_segments: int = 40,
+        num_segments: int = 8,
         reach_goal_reward_factor: float = 50,
         **kwargs,
     ):
         super().__init__(
             [
-                RobotPositionObservation(),
-                GoalPositionObservation(),
                 SpeedObservation(),
                 AngularVelocityObservation(),
                 ReferencePathSampleObservation(1, 0, reference_path_sample_offset),

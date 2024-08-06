@@ -129,9 +129,16 @@ class AlgoBase(ABC):
         if self.config.use_lr_schedule:
             num_schedule_steps = ((self.config.total_frames - self.config.first_reduce_frame)
                                   // self.config.frames_per_batch)
-            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                self.optim, num_schedule_steps, 1e-6
-            )
+            if isinstance(self.optim, dict):
+                self.scheduler = {}
+                for k, opt in self.optim.items():
+                    self.scheduler[f"{k}_lr"] = torch.optim.lr_scheduler.CosineAnnealingLR(
+                                                    opt, num_schedule_steps, self.config.eta_min
+                                                )
+            else:
+                self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    self.optim, num_schedule_steps, self.config.eta_min
+                )
         else:
             self.scheduler = None
 
@@ -321,7 +328,11 @@ class AlgoBase(ABC):
                 wandb.log(metrics_to_log, step=collected_frames)
             
             if self.scheduler is not None and collected_frames >= self.config.first_reduce_frame:
-                self.scheduler.step()
+                if isinstance(self.scheduler, dict):
+                    for scheduler in self.scheduler.values():
+                        scheduler.step()
+                else:
+                    self.scheduler.step()
 
             sampling_start = time.time()
 

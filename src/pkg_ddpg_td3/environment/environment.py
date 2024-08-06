@@ -56,6 +56,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.multiply_rwd = multiply_rwd
         self.render_cnt = 0
         self.render_mode = "rgb_array"
+        self.env_steps = 0
 
         for component in self.components:
             component.env = self
@@ -170,6 +171,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.update_status(True)
 
         self.last_render_at = 0
+        self.env_steps = 0
 
         for c in self.components:
             c.reset()
@@ -215,18 +217,28 @@ class TrajectoryPlannerEnvironment(gym.Env):
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
 
-        if self.use_wandb:
-            wandb.log({f'rewards/{n}': val for n, val in rwd_dict.items()})
+
         if self.multiply_rwd:
             if self.reached_goal:
                 reward = rwd_dict['ReachGoalReward']
             else:
-                reward = functools.reduce(lambda x, y: x * y, rwd_dict.values())
+                # reward = functools.reduce(lambda x, y: x * y, rwd_dict.values())
+                reward = (rwd_dict['GoalDistanceReward']
+                          * rwd_dict['BinaryCollisionReward']
+                          * rwd_dict['PosExcessiveSpeedReward']
+                          )
         else:
             reward = float(sum([r for r in rwd_dict.values()]))
 
+        if self.use_wandb:
+            log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
+            log_stats['rewards/combined_reward'] = reward
+            wandb.log(log_stats)
+
         terminated = self.update_termination()
         info = self.get_info()
+
+        self.env_steps += 1
 
         if GYM_0_22_X:
             return observation, reward, terminated, False, info

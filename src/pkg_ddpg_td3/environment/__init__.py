@@ -38,7 +38,27 @@ register(
     max_episode_steps=max_episode_steps,
 )
 register(
-    id='TrajectoryPlannerEnvironmentRaysReward3-v0',
+    id='TrajectoryPlannerEnvironmentRaysReward3-v1',
     entry_point='pkg_ddpg_td3.environment.variants.rays_reward3:TrajectoryPlannerEnvironmentRaysReward3',
+    max_episode_steps=max_episode_steps,
+)
+register(
+    id='TrajectoryPlannerEnvironmentRaysReward1-v1',
+    entry_point='pkg_ddpg_td3.environment.variants.rays_reward4:TrajectoryPlannerEnvironmentRaysReward4',
+    max_episode_steps=max_episode_steps,
+)
+register(
+    id='TrajectoryPlannerEnvironmentRaysReward3-v0',
+    entry_point='pkg_ddpg_td3.environment.variants.rays_reward5:TrajectoryPlannerEnvironmentRaysReward5',
+    max_episode_steps=max_episode_steps,
+)
+register(
+    id='TrajectoryPlannerEnvironmentRaysReward3-v2',
+    entry_point='pkg_ddpg_td3.environment.variants.rays_reward_multiply:TrajectoryPlannerEnvironmentRaysRewardMultiply',
+    max_episode_steps=max_episode_steps,
+)
+register(
+    id='TrajectoryPlannerEnvironmentRaysReward3-v3',
+    entry_point='pkg_ddpg_td3.environment.variants.rays_reward_3_3:TrajectoryPlannerEnvironmentRaysReward33',
     max_episode_steps=max_episode_steps,
 )

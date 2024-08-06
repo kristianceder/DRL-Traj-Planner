@@ -156,7 +156,7 @@ def generate_map_mpc(i: Union[int, None] = None) -> MapGenerator:
     return generate_map
 
 
-def generate_map_dynamic_explore() -> MapDescription:
+def generate_map_dynamic_convex_obstacle() -> MapDescription:
     """
     Generates a randomized map with many dynamic obstalces
     """
@@ -193,6 +193,46 @@ def generate_map_dynamic_explore() -> MapDescription:
     angle = math.pi
     obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
     
+    goal = Goal((35, random.uniform(5, 15)))
+
+    return robot, boundary, obstacles, goal
+
+
+def generate_map_static_nonconvex_obstacle() -> MapDescription:
+    """
+    Generates a randomized map with many dynamic obstalces
+    """
+
+    init_state = np.array([5., 10., 0., 0, 0])
+    robot = MobileRobot(init_state)
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
+    obstacles = []
+
+    x = 10.
+    y = 5.
+    w = 5.
+    h = 5.
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+
+    x = 20.
+    y = 15.
+    w = 4.
+    h = 10.
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+
+    x = 25.
+    y = 4.
+    x2 = 22.
+    y2 = 11.
+    freq = 0.000000001
+    # freq = random.uniform(0.1, 0.3)
+    angle = -math.pi / 2# * (3 / 4)
+    obstacles.append(Obstacle.create_non_convex_u_shape((x,y), (x2,y2), freq, angle, use_random=False))
+
     goal = Goal((35, random.uniform(5, 15)))
 
     return robot, boundary, obstacles, goal

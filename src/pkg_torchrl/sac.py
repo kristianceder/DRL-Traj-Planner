@@ -54,7 +54,7 @@ class SAC(AlgoBase):
         }
 
     def _loss_backward(self, loss_td):
-        loss_keys = ["loss_actor", "loss_critic", "loss_alpha"]
+        loss_keys = ["loss_actor", "loss_qvalue", "loss_alpha"]
         optim_keys = ["actor", "critic", "alpha"]
 
         for l_key, o_key in zip(loss_keys, optim_keys):
@@ -67,8 +67,6 @@ class SAC(AlgoBase):
             optim.zero_grad()
 
         return loss_td.select(*loss_keys).detach()
-    
-   
 
 
 if __name__ == '__main__':
