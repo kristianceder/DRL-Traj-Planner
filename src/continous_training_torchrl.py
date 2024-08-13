@@ -36,6 +36,7 @@ from configs import BaseConfig
 # make speed of obstacles a parameter
 # increasing discount factor
 # n-step schedule
+# deterministic eval env
 
 
 def process_args():

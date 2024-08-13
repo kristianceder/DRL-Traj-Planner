@@ -1,12 +1,16 @@
+
 from ..components import *
 from .. import MapGenerator, MobileRobot
 from ..environment import TrajectoryPlannerEnvironment
 
 
-class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
+class TrajectoryPlannerEnvironmentRaysReward34(TrajectoryPlannerEnvironment):
     """
     Environment with what the associated report describes as ray and sector
-    observations and a reward.
+    observations and a reward multiplication following
+
+    $$R = max(d_t - d_{t-1}, 0) * is_collided * r_speed + r_goal * (150 / timesteps) $$
+
     """
     def __init__(
         self,
@@ -14,8 +18,8 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
         time_step: float = 0.2,
         reference_path_sample_offset: float = 0,
         corner_samples: int = 3,
-        use_memory: bool = True,
         n_speed_observations: int = 1,
+        use_memory: bool = True,
         num_segments: int = 40,
         reach_goal_reward_factor: float = 50,
         goal_distance_factor: float = 1.0,
@@ -42,6 +46,6 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
             ],
             generate_map,
             time_step,
-            # reward_mode=None,
+            reward_mode='curriculum',
             **kwargs,
         )

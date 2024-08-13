@@ -62,6 +62,27 @@ def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interac
     return actor
 
 
+def build_critic(obs_size, action_size, in_keys_value, config):
+    # Define Critic Network
+    qvalue_net_kwargs = {
+        "in_features": (obs_size + action_size) if 'action' in in_keys_value else obs_size,
+        "num_cells": config.hidden_sizes,
+        "out_features": 1,
+        "activation_class": get_activation(config.activation),
+        "dropout": config.critic_dropout,
+    }
+
+    qvalue_net = MLP(
+        **qvalue_net_kwargs,
+    )
+
+    qvalue = ValueOperator(
+        in_keys=in_keys_value,
+        module=qvalue_net,
+    )
+    return qvalue
+
+
 class AlgoBase(ABC):
     def __init__(self, config, train_env, eval_env, in_keys_actor, in_keys_value):
         self.config = config
@@ -74,6 +95,9 @@ class AlgoBase(ABC):
         self.advantage_module = None
         self.target_net_updater = None
         self.is_pretrained = False
+
+        self.curriculum_stage = 0
+        self.pretrained_actor_is_reset = False
 
         self._init_policy()
         self._init_loss_module()
@@ -153,23 +177,7 @@ class AlgoBase(ABC):
             action_spec = action_spec[(0,) * len(self.train_env.batch_size)]
 
         actor = build_actor(obs_size, action_spec, self.in_keys_actor, self.config)
-        # Define Critic Network
-        qvalue_net_kwargs = {
-            "in_features": (obs_size + action_size) if 'action' in self.in_keys_value else obs_size,
-            "num_cells": self.config.hidden_sizes,
-            "out_features": 1,
-            "activation_class": get_activation(self.config.activation),
-            "dropout": self.config.critic_dropout,
-        }
-
-        qvalue_net = MLP(
-            **qvalue_net_kwargs,
-        )
-
-        qvalue = ValueOperator(
-            in_keys=self.in_keys_value,
-            module=qvalue_net,
-        )
+        qvalue = build_critic(obs_size, action_size, self.in_keys_value, self.config)
 
         self.model = nn.ModuleDict({
             "policy": actor,
@@ -184,6 +192,41 @@ class AlgoBase(ABC):
                 net(td)
         del td
         self.train_env.close()
+
+    def set_curriculum_stage(self, stage: int):
+        reset_n_critic_layers = self.config.curriculum.reset_n_critic_layers
+
+        self.train_env.unwrapped.set_curriculum_stage(stage)
+        self.eval_env.unwrapped.set_curriculum_stage(stage)
+
+        if reset_n_critic_layers is not None:
+            reset_critic(self.model["value"], reset_n_critic_layers)
+            # reinit loss module to update target net as well
+            self._init_loss_module()
+            self._init_optimizer()
+
+        if self.config.curriculum.reset_buffer:
+            self.replay_buffer.empty()
+            print("Emptied replay buffer")
+        print(f"Curriculum stage: {stage}")
+
+        self.curriculum_stage = stage
+
+    def _maybe_update_curriculum(self, collected_frames):
+        if not self.train_env.unwrapped.reward_mode == "curriculum":
+            return
+
+        if collected_frames >= self.config.curriculum.steps_stage_1 \
+                and self.curriculum_stage < 1:
+            self.set_curriculum_stage(1)
+
+        if collected_frames >= self.config.curriculum.steps_stage_2 \
+                and self.curriculum_stage < 2:
+            self.set_curriculum_stage(2)
+
+        if collected_frames >= self.config.curriculum.steps_stage_3 \
+                and self.curriculum_stage < 3:
+            self.set_curriculum_stage(3)
 
     def train(self, use_wandb=True, env_maker=None):
         # Create off-policy collector
@@ -224,6 +267,14 @@ class AlgoBase(ABC):
             # Add to replay buffer
             self.replay_buffer.extend(tensordict.cpu())
             collected_frames += current_frames
+
+            if not self.pretrained_actor_is_reset \
+                    and collected_frames >= self.config.init_random_frames \
+                    and self.is_pretrained \
+                    and self.config.reset_pretrained_actor:
+                print('Resetting actor')
+                reset_actor(self.model['policy'], 20)
+                self.pretrained_actor_is_reset = True
 
             # Optimization steps
             training_start = time.time()
@@ -326,7 +377,9 @@ class AlgoBase(ABC):
             
             if use_wandb:
                 wandb.log(metrics_to_log, step=collected_frames)
-            
+
+            self._maybe_update_curriculum(collected_frames)
+
             if self.scheduler is not None and collected_frames >= self.config.first_reduce_frame:
                 if isinstance(self.scheduler, dict):
                     for scheduler in self.scheduler.values():

@@ -72,6 +72,7 @@ class MobileRobot:
     @property
     def acceleration(self) -> float:
         return self._acceleration
+
     @acceleration.setter
     def acceleration(self, acceleration: float) -> None:
         self._acceleration = acceleration
@@ -79,7 +80,8 @@ class MobileRobot:
     @property
     def angular_acceleration(self):
         return self._angular_acceleration
-    @acceleration.setter
+
+    @angular_acceleration.setter
     def angular_acceleration(self, angular_acceleration: float) -> None:
         self._angular_acceleration = angular_acceleration
 

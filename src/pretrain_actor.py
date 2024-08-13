@@ -1,3 +1,4 @@
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,13 +8,24 @@ from lightning.pytorch.loggers import WandbLogger
 
 from tensordict import TensorDict
 
-from pkg_ddpg_td3.utils.map import generate_map_static
+from pkg_ddpg_td3.utils.map import (
+    generate_map_corridor,
+    generate_map_dynamic_convex_obstacle,
+    generate_map_static_nonconvex_obstacle,
+    generate_map_static
+)
 from pkg_torchrl.base import build_actor
 from pkg_torchrl.env import make_env
 from pkg_torchrl.pretrain import SimpleController, rollout
 
 from configs import BaseConfig
 
+
+def generate_map():
+    return random.choice([generate_map_dynamic_convex_obstacle,
+                          generate_map_corridor,
+                          generate_map_static_nonconvex_obstacle,
+                          generate_map_static])()
 
 class BC(L.LightningModule):
     def __init__(self, train_env, config):
@@ -77,7 +89,7 @@ def load_data(env, config):
 
 def main():
     config = BaseConfig()
-    env = make_env(config, generate_map=generate_map_static)
+    env = make_env(config, generate_map=generate_map)
 
     # load data
     train_loader, eval_loader = load_data(env, config)

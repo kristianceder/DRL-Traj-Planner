@@ -17,7 +17,7 @@ from extremitypathfinder import PolygonEnvironment
 from . import plot, MobileRobot, MapGenerator, MapDescription
 from .components.component import Component
 
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 from numpy.typing import NDArray
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -44,7 +44,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
     external_obs_component: Union[Component, None] = None
 
     def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2,
-                 use_wandb=False, multiply_rwd: bool = False):
+                 use_wandb=False, reward_mode: Optional[str] = None):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -53,10 +53,13 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.generate_map = generate_map
         self.time_step = time_step
         self.use_wandb = use_wandb
-        self.multiply_rwd = multiply_rwd
+        self.reward_mode = reward_mode
+        self.curriculum_stage = 0
         self.render_cnt = 0
         self.render_mode = "rgb_array"
-        self.env_steps = 0
+
+        if self.reward_mode is not None:
+            print(f"Reward mode: {self.reward_mode}")
 
         for component in self.components:
             component.env = self
@@ -171,7 +174,6 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.update_status(True)
 
         self.last_render_at = 0
-        self.env_steps = 0
 
         for c in self.components:
             c.reset()
@@ -207,7 +209,12 @@ class TrajectoryPlannerEnvironment(gym.Env):
     def step_agent(self, action: int) -> None:
         self.agent.step(action, self.time_step)
 
+    def set_curriculum_stage(self, new_stage: int) -> None:
+        print(f"Setting curriculum stage to {new_stage}")
+        self.curriculum_stage = new_stage
+
     def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
+
         self.step_obstacles()
         self.step_agent(action)
 
@@ -217,28 +224,44 @@ class TrajectoryPlannerEnvironment(gym.Env):
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
 
-
-        if self.multiply_rwd:
+        if self.reward_mode == 'multiply':
             if self.reached_goal:
                 reward = rwd_dict['ReachGoalReward']
             else:
+                keys_to_exclude = ['ReachGoalReward']
+                filtered_values = [max(0, 1. + v) for k, v in rwd_dict.items() if k not in keys_to_exclude]
+                reward = functools.reduce(lambda x, y: x * y, filtered_values)
                 # reward = functools.reduce(lambda x, y: x * y, rwd_dict.values())
-                reward = (rwd_dict['GoalDistanceReward']
-                          * rwd_dict['BinaryCollisionReward']
-                          * rwd_dict['PosExcessiveSpeedReward']
-                          )
+                # reward = (rwd_dict['GoalDistanceReward']
+                #           * rwd_dict['BinaryCollisionReward']
+                #           * rwd_dict['SpeedReward']
+                #           )
+        elif self.reward_mode == 'curriculum':
+            reward = rwd_dict['ReachGoalReward'] + rwd_dict['GoalDistanceReward']
+            if self.curriculum_stage >= 1:
+                reward += rwd_dict['SpeedReward']
+            if self.curriculum_stage >= 2:
+                reward += rwd_dict['AccelerationReward']
+                reward += rwd_dict['AngularAccelerationReward']
+            if self.curriculum_stage >= 3:
+                reward += rwd_dict['CollisionReward']
+
+                # keys_to_exclude = ['ReachGoalReward', 'GoalDistanceReward', 'SpeedReward', 'CollisionReward']
+                # filtered_values = [v for k, v in rwd_dict.items() if k not in keys_to_exclude]
+                # for v in filtered_values:
+                #     reward += v
         else:
             reward = float(sum([r for r in rwd_dict.values()]))
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/combined_reward'] = reward
+            log_stats['rewards/combined_reward_wo_goal'] = reward - rwd_dict['ReachGoalReward']
+
             wandb.log(log_stats)
 
         terminated = self.update_termination()
         info = self.get_info()
-
-        self.env_steps += 1
 
         if GYM_0_22_X:
             return observation, reward, terminated, False, info
