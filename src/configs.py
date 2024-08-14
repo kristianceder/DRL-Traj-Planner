@@ -4,11 +4,11 @@ from typing import Optional, List
 
 class CurriculumConfig(BaseModel):
     steps_stage_1: int = 25_000  # add collision penalty
-    steps_stage_2: int = 50_000  # add speed penalty
-    steps_stage_3: int = 75_000  # add acceleration penalty
+    steps_stage_2: int = 25_000  # add speed penalty
+    steps_stage_3: int = 25_000  # add acceleration penalty
 
-    reset_n_critic_layers: Optional[int] = None
-    reset_buffer: bool = False
+    reset_n_critic_layers: Optional[int] = 10
+    reset_buffer: bool = True
 
 
 class RLConfig(BaseModel):
@@ -19,10 +19,10 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 100_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
     # init_e_greedy: float = 0.2
-    frames_per_batch: int = 5_000
+    frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
     env_per_collector: int = 1
     reset_at_each_iter: bool = False
@@ -50,6 +50,16 @@ class RLConfig(BaseModel):
     max_grad_norm: float = 1.0
     loss_function: str = "smooth_l1"
 
+    # shared parameters
+    replay_buffer_size: int = 100_000
+    prioritize: bool = False
+    batch_size: int = 128
+    utd_ratio: float = 1.0
+
+    # network resets
+    n_reset_layers: Optional[int] = None
+    n_reset_layers_critic: Optional[int] = None
+
     # eval
     eval_iter: int = 200_000
 
@@ -67,16 +77,6 @@ class SACConfig(RLConfig):
     alpha_init: float = 1.0
     min_alpha: Optional[float] = None
 
-    # shared parameters
-    replay_buffer_size: int = 50_000
-    prioritize: bool = False
-    batch_size: int = 256
-    utd_ratio: float = 1.0
-
-    # network resets
-    n_reset_layers: Optional[int] = None
-    n_reset_layers_critic: Optional[int] = None
-
 
 class TD3Config(RLConfig):
     actor_lr: float = 3.0e-4
@@ -84,16 +84,6 @@ class TD3Config(RLConfig):
     target_update_polyak: float = 0.995
     policy_noise: float = 0.2
     noise_clip: float = 0.5
-
-    # shared parameters
-    replay_buffer_size: int = 50_000
-    prioritize: bool = False
-    batch_size: int = 128
-    utd_ratio: float = 1.0
-
-    # network resets
-    n_reset_layers: Optional[int] = None
-    n_reset_layers_critic: Optional[int] = None
 
 
 class PPOConfig(RLConfig):
@@ -109,16 +99,12 @@ class PPOConfig(RLConfig):
     # GAE
     lmbda: float = 0.95
 
-    # shared parameters
-    frames_per_batch: int = 5_000
-    replay_buffer_size: int = 5_000
-    prioritize: bool = False
-    batch_size: int = 64
-    utd_ratio: float = 1.0
-
-    # network resets
-    n_reset_layers: Optional[int] = None
-    n_reset_layers_critic: Optional[int] = None
+    # # shared parameters
+    # frames_per_batch: int = 5_000
+    # replay_buffer_size: int = 5_000
+    # prioritize: bool = False
+    # batch_size: int = 64
+    # utd_ratio: float = 1.0
 
 
 class PretrainConfig(BaseModel):
@@ -131,10 +117,10 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal
     # env 1 is original observations, 3 is updated
-    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v4"
+    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
-    seed: int = 10  # 10, 100, 200
+    seed: int = 200  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"
     use_vec_norm: bool = False

@@ -27,6 +27,9 @@ from .goal_position_observation import GoalPositionObservation
 from .robot_position_observation import RobotPositionObservation
 from .reward_collision_binary import BinaryCollisionReward
 from .pos_excessive_speed_reward import PosExcessiveSpeedReward
+from .norm_speed_reward import NormSpeedReward
+from .norm_acceleration_reward import NormAccelerationReward
+from .norm_goal_distance_reward import NormGoalDistanceReward
 
 __all__ = [
     'Component',
@@ -57,4 +60,7 @@ __all__ = [
     'RobotPositionObservation',
     'BinaryCollisionReward',
     'PosExcessiveSpeedReward',
+    'NormSpeedReward',
+    'NormAccelerationReward',
+    'NormGoalDistanceReward',
 ]

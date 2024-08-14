@@ -231,32 +231,24 @@ class TrajectoryPlannerEnvironment(gym.Env):
                 keys_to_exclude = ['ReachGoalReward']
                 filtered_values = [max(0, 1. + v) for k, v in rwd_dict.items() if k not in keys_to_exclude]
                 reward = functools.reduce(lambda x, y: x * y, filtered_values)
-                # reward = functools.reduce(lambda x, y: x * y, rwd_dict.values())
-                # reward = (rwd_dict['GoalDistanceReward']
-                #           * rwd_dict['BinaryCollisionReward']
-                #           * rwd_dict['SpeedReward']
-                #           )
+
         elif self.reward_mode == 'curriculum':
             reward = rwd_dict['ReachGoalReward'] + rwd_dict['GoalDistanceReward']
+
             if self.curriculum_stage >= 1:
-                reward += rwd_dict['SpeedReward']
+                reward += rwd_dict['CollisionReward']
             if self.curriculum_stage >= 2:
+                reward += rwd_dict['SpeedReward']
+            if self.curriculum_stage >= 3:
                 reward += rwd_dict['AccelerationReward']
                 reward += rwd_dict['AngularAccelerationReward']
-            if self.curriculum_stage >= 3:
-                reward += rwd_dict['CollisionReward']
-
-                # keys_to_exclude = ['ReachGoalReward', 'GoalDistanceReward', 'SpeedReward', 'CollisionReward']
-                # filtered_values = [v for k, v in rwd_dict.items() if k not in keys_to_exclude]
-                # for v in filtered_values:
-                #     reward += v
         else:
             reward = float(sum([r for r in rwd_dict.values()]))
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/combined_reward'] = reward
-            log_stats['rewards/combined_reward_wo_goal'] = reward - rwd_dict['ReachGoalReward']
+            log_stats['rewards/combined_reward_dense'] = reward - rwd_dict['ReachGoalReward'] - rwd_dict['CollisionReward']
 
             wandb.log(log_stats)
 
