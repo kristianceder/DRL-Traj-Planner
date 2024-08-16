@@ -19,7 +19,16 @@ from torchrl.envs.utils import ExplorationType, set_exploration_type
 
 
 def make_env(config, **kwargs):
-    raw_env = GymEnv(config.env_name, device=config.device, **kwargs)
+    raw_env = GymEnv(config.env_name,
+                     w1=config.w1,
+                     w2=config.w2,
+                     w3=config.w3,
+                     w4=config.w4,
+                     reward_mode=config.reward_mode,
+                     k0=config.k0,
+                     kc=config.kc,
+                     device=config.device,
+                     **kwargs)
 
     def make_t_env():
         transform_list = [

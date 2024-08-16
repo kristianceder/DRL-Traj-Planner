@@ -1,3 +1,4 @@
+from typing import Optional
 from ..components import *
 from .. import MapGenerator, MobileRobot
 from ..environment import TrajectoryPlannerEnvironment
@@ -17,12 +18,14 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
         use_memory: bool = True,
         n_speed_observations: int = 1,
         num_segments: int = 40,
-        reach_goal_reward_factor: float = 20,
-        collision_factor: float = 20,
-        goal_distance_factor: float = 1.0,
-        speed_factor: float = 4.0,
+        reach_goal_reward_factor: float = 100,
+        collision_factor: float = 100,
         reference_speed: float = MobileRobot().cfg.SPEED_MAX * 0.8,
-        acc_factor: float = 0.1,
+        w1: float = 1/4,
+        w2: float = 1/4,
+        w3: float = 1/4,
+        w4: float = 1/4,
+        reward_mode: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(
@@ -36,16 +39,13 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
                 SectorAndRayObservation(num_segments, use_memory=use_memory),
                 ReachGoalReward(reach_goal_reward_factor, default_val=0.),
                 CollisionReward(collision_factor),
-                # NormSpeedReward(1/3, reference_speed, tau=0.97),
-                # NormAccelerationReward(1/3),
-                NormGoalDistanceReward(1.),
-                # GoalDistanceReward(goal_distance_factor, strictly_pos=False),
-                # SpeedReward(speed_factor, reference_speed, tau=0.9),
-                # AccelerationReward(acc_factor, 1),
-                # AngularAccelerationReward(acc_factor, 1),
+                NormSpeedReward(w1, reference_speed, tau=0.95),
+                NormAccelerationReward(w2),
+                NormGoalDistanceReward(w3),
+                NormCrossTrackReward(w4),
             ],
             generate_map,
             time_step,
-            # reward_mode=None,
+            reward_mode=reward_mode,
             **kwargs,
         )

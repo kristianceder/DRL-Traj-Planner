@@ -22,11 +22,8 @@ class NormSpeedReward(Component):
             return (1 - self.tau) * error ** 2
 
     def step(self, action: int) -> float:
-        error = self.env.agent.speed - self.reference_speed
-        # print('---')
-        # print(error)
-        # print(self.max_value)
+        # FIXME agent speed can be negative when driving backwards
+        error = np.abs(self.env.agent.speed) - self.reference_speed
         reward = 1 - ((self.expectile(error) * 2) / self.max_value)
-        # print(reward)
 
         return self.factor * reward

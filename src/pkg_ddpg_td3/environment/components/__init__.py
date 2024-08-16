@@ -30,6 +30,7 @@ from .pos_excessive_speed_reward import PosExcessiveSpeedReward
 from .norm_speed_reward import NormSpeedReward
 from .norm_acceleration_reward import NormAccelerationReward
 from .norm_goal_distance_reward import NormGoalDistanceReward
+from .norm_cross_track_reward import NormCrossTrackReward
 
 __all__ = [
     'Component',
@@ -63,4 +64,5 @@ __all__ = [
     'NormSpeedReward',
     'NormAccelerationReward',
     'NormGoalDistanceReward',
+    'NormCrossTrackReward',
 ]
