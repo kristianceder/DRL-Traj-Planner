@@ -43,8 +43,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
     # Component producing external observations
     external_obs_component: Union[Component, None] = None
 
-    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step:float=0.2,
-                 use_wandb=False, reward_mode: Optional[str] = None):
+    def __init__(self, components: list[Component], generate_map: MapGenerator, time_step: float = 0.2,
+                 use_wandb: bool = False, reward_mode: Optional[str] = None, k0: float = 0.001, kc: float = 0.95):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -57,6 +57,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.curriculum_stage = 0
         self.render_cnt = 0
         self.render_mode = "rgb_array"
+        self.k = k0
+        self.kc = kc
 
         if self.reward_mode is not None:
             print(f"Reward mode: {self.reward_mode}")
@@ -213,6 +215,9 @@ class TrajectoryPlannerEnvironment(gym.Env):
         print(f"Setting curriculum stage to {new_stage}")
         self.curriculum_stage = new_stage
 
+    def step_k(self):
+        self.k = self.k**self.kc
+
     def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
 
         self.step_obstacles()
@@ -225,31 +230,53 @@ class TrajectoryPlannerEnvironment(gym.Env):
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
 
         if self.reward_mode == 'multiply':
-            if self.reached_goal:
-                reward = rwd_dict['ReachGoalReward']
-            else:
-                keys_to_exclude = ['ReachGoalReward']
-                filtered_values = [max(0, 1. + v) for k, v in rwd_dict.items() if k not in keys_to_exclude]
-                reward = functools.reduce(lambda x, y: x * y, filtered_values)
+            # binary terms
+            reward = rwd_dict['ReachGoalReward'] + rwd_dict['CollisionReward']
 
-        elif self.reward_mode == 'curriculum':
-            reward = rwd_dict['ReachGoalReward'] + rwd_dict['GoalDistanceReward']
-
-            if self.curriculum_stage >= 1:
-                reward += rwd_dict['CollisionReward']
-            if self.curriculum_stage >= 2:
-                reward += rwd_dict['SpeedReward']
-            if self.curriculum_stage >= 3:
-                reward += rwd_dict['AccelerationReward']
-                reward += rwd_dict['AngularAccelerationReward']
+            # multiplicative terms
+            keys_to_exclude = ['ReachGoalReward', 'CollisionReward']
+            # project values from [-1, 1] to [0, 1]
+            filtered_values = [max(0., (v + 1.) / 2.) for k, v in rwd_dict.items() if k not in keys_to_exclude]
+            reward += functools.reduce(lambda x, y: x * y, filtered_values)
+            k = 1.
         else:
-            reward = float(sum([r for r in rwd_dict.values()]))
+            k = self.k if self.reward_mode == 'curriculum' else 1.
+            constraint_rewards = (rwd_dict['CollisionReward']
+                                  + rwd_dict['NormSpeedReward']
+                                  + rwd_dict['NormAccelerationReward']
+                                  + rwd_dict['NormCrossTrackReward'])
+
+            reward = (rwd_dict['ReachGoalReward']
+                      + rwd_dict['NormGoalDistanceReward']
+                      + k * constraint_rewards)
+
+            # if self.curriculum_stage < 2:
+            #     w_dist = 3
+            # elif self.curriculum_stage == 3:
+            #     w_dist = 1.5
+            # else:
+            #     w_dist = 1
+            #
+            # reward += w_dist * rwd_dict['NormGoalDistanceReward']
+            #
+            # if self.curriculum_stage >= 1:
+            #     reward += rwd_dict['CollisionReward']
+            # if self.curriculum_stage >= 2:
+            #     w_speed = 1.5 if self.curriculum_stage == 2 else 1
+            #     reward += w_speed * rwd_dict['NormSpeedReward']
+            # if self.curriculum_stage >= 3:
+            #     reward += rwd_dict['NormAccelerationReward']
+        # else:
+        #     reward = float(sum([r for r in rwd_dict.values()]))
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/combined_reward'] = reward
-            log_stats['rewards/combined_reward_dense'] = reward - rwd_dict['ReachGoalReward'] - rwd_dict['CollisionReward']
-
+            combined_reward_dense = (rwd_dict['NormGoalDistanceReward']
+                                     + rwd_dict['NormSpeedReward']
+                                     + rwd_dict['NormAccelerationReward'])
+            log_stats['rewards/combined_reward_dense'] = combined_reward_dense
+            log_stats['rewards/k'] = k
             wandb.log(log_stats)
 
         terminated = self.update_termination()
