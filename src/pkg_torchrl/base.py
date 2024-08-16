@@ -58,6 +58,7 @@ def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interac
         distribution_kwargs=dist_kwargs,
         default_interaction_type=InteractionType.RANDOM if use_random_interaction else InteractionType.MODE,
         return_log_prob=True,
+        safe=True,  # this makes sure that predicted actions stay in action_spec bounds
     )
     return actor
 
@@ -202,8 +203,8 @@ class AlgoBase(ABC):
         if reset_n_critic_layers is not None:
             reset_critic(self.model["value"], reset_n_critic_layers)
             # reinit loss module to update target net as well
-            self._init_loss_module()
-            self._init_optimizer()
+            # self._init_loss_module()
+            # self._init_optimizer()
 
         if self.config.curriculum.reset_buffer:
             self.replay_buffer.empty()
@@ -214,19 +215,24 @@ class AlgoBase(ABC):
 
     def _maybe_update_curriculum(self, collected_frames):
         if not self.train_env.unwrapped.reward_mode == "curriculum":
-            return
+            return collected_frames
 
         if collected_frames >= self.config.curriculum.steps_stage_1 \
                 and self.curriculum_stage < 1:
             self.set_curriculum_stage(1)
+            collected_frames = 0
 
         if collected_frames >= self.config.curriculum.steps_stage_2 \
                 and self.curriculum_stage < 2:
             self.set_curriculum_stage(2)
+            collected_frames = 0
 
         if collected_frames >= self.config.curriculum.steps_stage_3 \
                 and self.curriculum_stage < 3:
             self.set_curriculum_stage(3)
+            collected_frames = 0
+
+        return collected_frames
 
     def train(self, use_wandb=True, env_maker=None):
         # Create off-policy collector
@@ -236,6 +242,7 @@ class AlgoBase(ABC):
         # Main loop
         start_time = time.time()
         collected_frames = 0
+        all_collected_frames = 0
         pbar = tqdm.tqdm(total=self.config.total_frames)
         last_success_rate = 0.0
 
@@ -247,7 +254,7 @@ class AlgoBase(ABC):
         prioritize = self.config.prioritize
         eval_iter = self.config.eval_iter
         frames_per_batch = self.config.frames_per_batch
-        eval_rollout_steps = self.config.max_eps_steps
+        eval_rollout_steps = self.config.eval_rollout_steps
 
         sampling_start = time.time()
         for i, tensordict in enumerate(collector):
@@ -267,6 +274,7 @@ class AlgoBase(ABC):
             # Add to replay buffer
             self.replay_buffer.extend(tensordict.cpu())
             collected_frames += current_frames
+            all_collected_frames += current_frames
 
             if not self.pretrained_actor_is_reset \
                     and collected_frames >= self.config.init_random_frames \
@@ -279,6 +287,7 @@ class AlgoBase(ABC):
             # Optimization steps
             training_start = time.time()
             if collected_frames >= self.config.init_env_steps:
+                # print(f"Train {collected_frames} frames")
                 if self.config.n_reset_layers is not None:
                     reset_actor(self.model["policy"], self.config.n_reset_layers)
                 if self.config.n_reset_layers_critic is not None:
@@ -333,7 +342,6 @@ class AlgoBase(ABC):
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
                 )
-                # TODO log lr
                 if isinstance(self.optim, dict):
                     for k, opt in self.optim.items():
                         metrics_to_log[f"train/lr_{k}"] = opt.param_groups[0]["lr"]
@@ -359,7 +367,7 @@ class AlgoBase(ABC):
                         eval_rollout_steps,
                         self.model["policy"],
                         auto_cast_to_device=True,
-                        break_when_any_done=True,
+                        break_when_any_done=False,
                     )
                     eval_time = time.time() - eval_start
                     eval_reward = eval_rollout["next", "reward"].mean().item()
@@ -374,11 +382,10 @@ class AlgoBase(ABC):
                     metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
                     metrics_to_log["eval/reward"] = eval_reward
                     metrics_to_log["eval/time"] = eval_time
+                    metrics_to_log["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
             
             if use_wandb:
-                wandb.log(metrics_to_log, step=collected_frames)
-
-            self._maybe_update_curriculum(collected_frames)
+                wandb.log(metrics_to_log, step=all_collected_frames)
 
             if self.scheduler is not None and collected_frames >= self.config.first_reduce_frame:
                 if isinstance(self.scheduler, dict):
@@ -387,6 +394,10 @@ class AlgoBase(ABC):
                 else:
                     self.scheduler.step()
 
+            # this resets collected_frames = 0 if proceeds to next stage
+            collected_frames = self._maybe_update_curriculum(collected_frames)
+            self.train_env.unwrapped.step_k()
+            self.eval_env.unwrapped.step_k()
             sampling_start = time.time()
 
         collector.shutdown()

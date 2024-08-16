@@ -9,6 +9,7 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 """
 
 import random
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from pkg_torchrl.td3 import TD3
 
 from configs import BaseConfig
 
+logging.basicConfig(level=logging.ERROR)
 
 # TODO (kilian)
 # make speed of obstacles a parameter
@@ -56,11 +58,11 @@ def run():
     elif map_key == 'static_nonconvex_obstacle':
         generate_map = generate_map_static_nonconvex_obstacle
     else:
-        print(f'Could not find map key {map_key}')
+        logging.error(f'Could not find map key {map_key}')
 
     train_env = make_env(config, generate_map=generate_map, use_wandb=True)
     eval_env = make_env(config, generate_map=generate_map)
-    env_maker = lambda: make_env(config, generate_map=generate_map)
+    # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
@@ -72,9 +74,9 @@ def run():
     wandb.config["path"] = path
     wandb.config["map"] = generate_map.__name__
 
-    model.train(env_maker=env_maker)
+    model.train()
     model.save(f"{path}/final_model.pth")
-    print(f"Final model saved to {path}")
+    logging.info(f"Final model saved to {path}")
 
 
 if __name__ == "__main__":

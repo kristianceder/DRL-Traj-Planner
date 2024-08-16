@@ -3,9 +3,9 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    steps_stage_1: int = 25_000  # add collision penalty
-    steps_stage_2: int = 25_000  # add speed penalty
-    steps_stage_3: int = 25_000  # add acceleration penalty
+    steps_stage_1: int = 2_000_000  # add collision penalty
+    steps_stage_2: int = 2_000_000  # add speed penalty
+    steps_stage_3: int = 2_000_000  # add acceleration penalty
 
     reset_n_critic_layers: Optional[int] = 10
     reset_buffer: bool = True
@@ -19,9 +19,8 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 50_000
+    total_frames: int = 100_000
     init_random_frames: Optional[int] = 5_000
-    # init_e_greedy: float = 0.2
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
     env_per_collector: int = 1
@@ -51,7 +50,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 100_000
+    replay_buffer_size: int = 10_000
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0
@@ -61,7 +60,8 @@ class RLConfig(BaseModel):
     n_reset_layers_critic: Optional[int] = None
 
     # eval
-    eval_iter: int = 200_000
+    eval_iter: int = 25_000
+    eval_rollout_steps: int = 3_000
 
     # lr schedule
     use_lr_schedule: bool = False
@@ -99,12 +99,9 @@ class PPOConfig(RLConfig):
     # GAE
     lmbda: float = 0.95
 
-    # # shared parameters
-    # frames_per_batch: int = 5_000
-    # replay_buffer_size: int = 5_000
-    # prioritize: bool = False
+    # shared parameters
+    replay_buffer_size: int = 1_000
     # batch_size: int = 64
-    # utd_ratio: float = 1.0
 
 
 class PretrainConfig(BaseModel):
@@ -115,9 +112,10 @@ class PretrainConfig(BaseModel):
 
 
 class BaseConfig(BaseModel):
-    # v0 is original rewards, v1 is minimal
+    # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
     env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    reward_mode: Optional[str] = "multiply"  # vals: sum, curriculum, multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
     seed: int = 200  # 10, 100, 200
@@ -126,7 +124,18 @@ class BaseConfig(BaseModel):
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    algo: str = "td3"
+    alpha: float = 0.7
+    wg: float = 1 - alpha
+    wc: float = alpha
+
+    w1: float = wc  # speed
+    w2: float = wc  # acceleration
+    w3: float = wg  # goal distance
+    w4: float = wc  # cross track
+    k0: float = 0.001
+    kc: float = 0.94
+
+    algo: str = "sac"
 
     pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()

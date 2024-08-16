@@ -10,7 +10,7 @@ This is generally done by the slurm array function as seen in ``SLURM_jobscript.
 
 import os
 import random
-# import argparse
+import argparse
 from datetime import datetime
 from pathlib import Path
 
@@ -36,38 +36,22 @@ from configs import BaseConfig
 # make speed of obstacles a parameter
 # increasing discount factor
 # n-step schedule
-# deterministic eval env
 
 
-# def process_args():
-#     parser = argparse.ArgumentParser(
-#         prog='DRL-Traj-Planner',
-#         description='Mobile robot navigation', )
-#     parser.add_argument('-v', '--visualize',
-#                         action='store_true')
-#     parser.add_argument('-p', '--path', default=None, type=str)
-#
-#     return parser.parse_args()
+def process_args():
+    parser = argparse.ArgumentParser(
+        prog='DRL-Traj-Planner',
+        description='Mobile robot navigation', )
+    parser.add_argument('-v', '--visualize',
+                        action='store_true')
+    parser.add_argument('-p', '--path', default=None, type=str)
+
+    return parser.parse_args()
 
 
 def run():
-    # args = process_args()
-
-    # pt_str = "-pretrained" if args.path == 'pretrain' else ""
-    # wandb_name = config.algo.lower() + pt_str + "-" + wandb.util.generate_id()
-    tags = ["exploration_sweep_1"]
-    # tags = ["alpha_exp_1"]
-    # if model.is_pretrained:
-    #     tags += ["pretrained"]
-    _ = wandb.init(
-        project="DRL-Traj-Planner",
-        # config=config.model_dump(),
-        tags=tags,
-        # name=wandb_name,
-    )
-    config = BaseConfig(**wandb.config)
-    wandb.config.update(config.model_dump())
-
+    args = process_args()
+    config = BaseConfig()
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
@@ -90,43 +74,54 @@ def run():
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
     models_path = Path('../Model/testing')
 
-    # if args.visualize:
-    #     # TODO make own script for visualization
-    #     if args.path is None:
-    #         # get latest path
-    #         path = max(models_path.glob('*/'), key=os.path.getmtime) / "final_model.pth"
-    #         model.load(path)
-    #     elif args.path == 'pretrain':
-    #         path = '../Model/testing/pretrained_actor.pt'
-    #         actor_sd = torch.load(path)
-    #         model.model['policy'].load_state_dict(actor_sd)
-    #     else:
-    #         path = models_path / args.path / "final_model.pth"
-    #         model.load(path)
-    #
-    #     print(f"Loaded {path}")
-    #     render_rollout(eval_env, model, config, n_steps=3_000)
-    # else:
-    # if args.path is not None:
-    #     if args.path == 'pretrain':
-    #         path = '../Model/testing/pretrained_actor.pt'
-    #         actor_sd = torch.load(path)
-    #         model.model['policy'].load_state_dict(actor_sd)
-    #         model.set_pretrained()
-    #     else:
-    # path = models_path / args.path / "final_model.pth"
-    # model.load(path)
+    if args.visualize:
+        if args.path is None:
+            # get latest path
+            path = max(models_path.glob('*/'), key=os.path.getmtime) / "final_model.pth"
+            model.load(path)
+        elif args.path == 'pretrain':
+            path = '../Model/testing/pretrained_actor.pt'
+            actor_sd = torch.load(path)
+            model.model['policy'].load_state_dict(actor_sd)
+        else:
+            path = models_path / args.path / "final_model.pth"
+            model.load(path)
 
-    timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
-    path = models_path / f"{timestamp}_{config.algo.upper()}"
-    path.mkdir(exist_ok=True, parents=True)
-    wandb.config["path"] = path
-    wandb.config["map"] = generate_map.__name__
+        print(f"Loaded {path}")
+        render_rollout(eval_env, model, config, n_steps=3_000)
+    else:
+        if args.path is not None:
+            if args.path == 'pretrain':
+                path = '../Model/testing/pretrained_actor.pt'
+                actor_sd = torch.load(path)
+                model.model['policy'].load_state_dict(actor_sd)
+                model.set_pretrained()
+            else:
+                path = models_path / args.path / "final_model.pth"
+                model.load(path)
 
-    model.train(env_maker=env_maker)
-    model.save(f"{path}/final_model.pth")
-    print(f"Final model saved to {path}")
-    # render_rollout(eval_env, model, config, n_steps=1_000)
+        timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
+        path = models_path / f"{timestamp}_{config.algo.upper()}"
+        path.mkdir(exist_ok=True, parents=True)
+
+        pt_str = "-pretrained" if args.path == 'pretrain' else ""
+        wandb_name = config.algo.lower() + pt_str + "-" + wandb.util.generate_id()
+        tags = ["exploration"]
+        if model.is_pretrained:
+            tags += ["pretrained"]
+        _ = wandb.init(
+            project="DRL-Traj-Planner",
+            config=config.model_dump(),
+            tags=tags,
+            name=wandb_name,
+        )
+        wandb.config["path"] = path
+        wandb.config["map"] = generate_map.__name__
+
+        model.train(env_maker=env_maker)
+        model.save(f"{path}/final_model.pth")
+        print(f"Final model saved to {path}")
+        # render_rollout(eval_env, model, config, n_steps=1_000)
 
 
 if __name__ == "__main__":

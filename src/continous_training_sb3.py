@@ -20,26 +20,13 @@ import torch
 from pkg_ddpg_td3.utils.map import (
     generate_map_dynamic,
     generate_map_corridor,
-    generate_map_mpc,
+    generate_map_static_nonconvex_obstacle,
     generate_map_eval
 )
 import gymnasium as gym
 from stable_baselines3 import PPO
 
 from configs import BaseConfig
-
-
-# TODO (kilian):
-# - fix running on gpu device
-# - generalize RL part to easily implement other algos
-
-
-class ConstWrapper:
-    def __init__(self, generate_func):
-        self.out = generate_func()
-
-    def __call__(self):
-        return copy.deepcopy(self.out)
 
 
 def process_args():
@@ -84,10 +71,10 @@ def run():
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    const_dynamic = ConstWrapper(generate_map_dynamic)
+    generate_map = generate_map_static_nonconvex_obstacle
 
-    train_env = gym.make(config.env_name, generate_map=const_dynamic, max_episode_steps=config.sac.max_eps_steps)
-    eval_env = gym.make(config.env_name, generate_map=const_dynamic, max_episode_steps=config.sac.max_eps_steps)
+    train_env = gym.make(config.env_name, generate_map=generate_map, max_episode_steps=config.sac.max_eps_steps)
+    eval_env = gym.make(config.env_name, generate_map=generate_map, max_episode_steps=config.sac.max_eps_steps)
 
     # model = SAC(config.sac, train_env, eval_env)
     model = PPO('MultiInputPolicy', train_env, verbose=1)
@@ -119,7 +106,7 @@ def run():
         #     tags="sac_exploration",
         # )
 
-        model.learn(100_000)
+        model.learn(50_000)
         model.save(f"{path}/final_model.pth")
         render_rollout(eval_env, model, config, n_steps=1_000)
 
