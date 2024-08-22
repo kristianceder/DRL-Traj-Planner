@@ -214,6 +214,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
     def set_curriculum_stage(self, new_stage: int) -> None:
         print(f"Setting curriculum stage to {new_stage}")
         self.curriculum_stage = new_stage
+        if new_stage > 0:
+            self.k = 1.
 
     def step_k(self):
         self.k = self.k**self.kc
@@ -240,34 +242,17 @@ class TrajectoryPlannerEnvironment(gym.Env):
             reward += functools.reduce(lambda x, y: x * y, filtered_values)
             k = 1.
         else:
-            k = self.k if self.reward_mode == 'curriculum' else 1.
+            k = self.k if 'curriculum' in self.reward_mode else 1.
             constraint_rewards = (rwd_dict['CollisionReward']
                                   + rwd_dict['NormSpeedReward']
                                   + rwd_dict['NormAccelerationReward']
                                   + rwd_dict['NormCrossTrackReward'])
 
+            # TODO add mode with stages, where k=0 in stage 0 and k=1 in stage 1 (switch at 50k steps)
+
             reward = (rwd_dict['ReachGoalReward']
                       + rwd_dict['NormGoalDistanceReward']
                       + k * constraint_rewards)
-
-            # if self.curriculum_stage < 2:
-            #     w_dist = 3
-            # elif self.curriculum_stage == 3:
-            #     w_dist = 1.5
-            # else:
-            #     w_dist = 1
-            #
-            # reward += w_dist * rwd_dict['NormGoalDistanceReward']
-            #
-            # if self.curriculum_stage >= 1:
-            #     reward += rwd_dict['CollisionReward']
-            # if self.curriculum_stage >= 2:
-            #     w_speed = 1.5 if self.curriculum_stage == 2 else 1
-            #     reward += w_speed * rwd_dict['NormSpeedReward']
-            # if self.curriculum_stage >= 3:
-            #     reward += rwd_dict['NormAccelerationReward']
-        # else:
-        #     reward = float(sum([r for r in rwd_dict.values()]))
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}

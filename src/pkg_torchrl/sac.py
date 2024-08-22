@@ -59,6 +59,9 @@ class SAC(AlgoBase):
 
         for l_key, o_key in zip(loss_keys, optim_keys):
             loss = loss_td[l_key]
+            # self.target_actor is not None:
+
+            # TODO add kl div loss here
             optim = self.optim[o_key]
             loss.backward()
             params = optim.param_groups[0]["params"]

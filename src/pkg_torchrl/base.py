@@ -93,6 +93,7 @@ class AlgoBase(ABC):
         self.in_keys_actor = in_keys_actor
         self.in_keys_value = in_keys_value
 
+        self.target_actor = None
         self.advantage_module = None
         self.target_net_updater = None
         self.is_pretrained = False
@@ -214,7 +215,7 @@ class AlgoBase(ABC):
         self.curriculum_stage = stage
 
     def _maybe_update_curriculum(self, collected_frames):
-        if not self.train_env.unwrapped.reward_mode == "curriculum":
+        if not self.train_env.unwrapped.reward_mode == "curriculum_step":
             return collected_frames
 
         if collected_frames >= self.config.curriculum.steps_stage_1 \
@@ -303,6 +304,9 @@ class AlgoBase(ABC):
                     else:
                         sampled_tensordict = sampled_tensordict.clone()
 
+                    # calculate target values if needed
+                    # if self.target_actor is not None:
+                    #     self.target_actor.log_prob(sampled_tensordict)
                     # Compute loss
                     loss_td = self.loss_module(sampled_tensordict)
 
@@ -395,9 +399,15 @@ class AlgoBase(ABC):
                     self.scheduler.step()
 
             # this resets collected_frames = 0 if proceeds to next stage
-            collected_frames = self._maybe_update_curriculum(collected_frames)
-            self.train_env.unwrapped.step_k()
-            self.eval_env.unwrapped.step_k()
+            if self.config.reward_mode == 'curriculum_step':
+                collected_frames = self._maybe_update_curriculum(collected_frames)
+            elif self.config.reward_mode == 'curriculum':
+                self.train_env.unwrapped.step_k()
+                self.eval_env.unwrapped.step_k()
+            elif self.config.reward_mode == 'sum' or self.config.reward_mode == 'multiply':
+                pass
+            else:
+                raise ValueError(f"Unsupported curriculum mode: {self.config.curriculum_mode}")
             sampling_start = time.time()
 
         collector.shutdown()

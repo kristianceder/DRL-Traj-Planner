@@ -38,12 +38,20 @@ logging.basicConfig(level=logging.ERROR)
 
 
 def run():
-    tags = ["exploration_sweep_1"]
+    tags = ["testing"]
     _ = wandb.init(
         project="DRL-Traj-Planner",
         tags=tags,
     )
     config = BaseConfig(**wandb.config)
+    config.wg = 1 - config.alpha
+    config.wc = config.alpha
+
+    config.w1 = config.wc / 3  # speed
+    config.w2 = config.wc / 3  # acceleration
+    config.w3 = config.wg  # goal distance
+    config.w4 = config.wc / 3  # cross track
+
     wandb.config.update(config.model_dump())
 
     random.seed(config.seed)

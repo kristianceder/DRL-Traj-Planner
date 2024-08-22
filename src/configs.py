@@ -3,11 +3,12 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    steps_stage_1: int = 2_000_000  # add collision penalty
+    # mode: str = "exponential"  # ["stages", "exponential"]
+    steps_stage_1: int = 50_000  # 50_000  # add collision penalty
     steps_stage_2: int = 2_000_000  # add speed penalty
     steps_stage_3: int = 2_000_000  # add acceleration penalty
 
-    reset_n_critic_layers: Optional[int] = 10
+    reset_n_critic_layers: Optional[int] = None
     reset_buffer: bool = True
 
 
@@ -15,6 +16,7 @@ class RLConfig(BaseModel):
     seed: Optional[int] = None
     max_eps_steps: int = 300
     reset_pretrained_actor: bool = False
+    reward_mode: str = ""  # will be overwritten in post init
 
     curriculum: CurriculumConfig = CurriculumConfig()
 
@@ -115,7 +117,7 @@ class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
     env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    reward_mode: Optional[str] = "multiply"  # vals: sum, curriculum, multiply
+    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum, curriculum_step, multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
     seed: int = 200  # 10, 100, 200
@@ -124,14 +126,14 @@ class BaseConfig(BaseModel):
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    alpha: float = 0.7
+    alpha: float = 0.5
     wg: float = 1 - alpha
     wc: float = alpha
 
-    w1: float = wc  # speed
-    w2: float = wc  # acceleration
+    w1: float = wc / 3  # speed
+    w2: float = wc / 3  # acceleration
     w3: float = wg  # goal distance
-    w4: float = wc  # cross track
+    w4: float = wc / 3  # cross track
     k0: float = 0.001
     kc: float = 0.94
 
@@ -148,12 +150,15 @@ class BaseConfig(BaseModel):
         self.sac.seed = self.seed
         self.sac.device = self.device
         self.sac.collector_device = self.collector_device
+        self.sac.reward_mode = self.reward_mode
         self.ppo.seed = self.seed
         self.ppo.device = self.device
         self.ppo.collector_device = self.collector_device
+        self.ppo.reward_mode = self.reward_mode
         self.td3.seed = self.seed
         self.td3.device = self.device
         self.td3.collector_device = self.collector_device
+        self.td3.reward_mode = self.reward_mode
 
         if self.algo == "ppo":
             assert self.ppo.replay_buffer_size == self.ppo.frames_per_batch, \

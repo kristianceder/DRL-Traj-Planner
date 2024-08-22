@@ -7,9 +7,8 @@ parameters:
   alpha:
     values: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
   reward_mode:
-    values: ["sum", "curriculum"] # "multiply"
+    values: ["sum", "curriculum", "curriculum_step"]  # "multiply"
   seed:
-    values: [1235, 2621, 12, 52]
+    values: [1235, 2621, 12]  # 1235, 2621, 12, 52
   map_key:
-    value: 'dynamic_convex_obstacle'
-#    values: ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
+    values: ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
