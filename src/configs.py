@@ -4,12 +4,15 @@ from typing import Optional, List
 
 class CurriculumConfig(BaseModel):
     # mode: str = "exponential"  # ["stages", "exponential"]
-    steps_stage_1: int = 50_000  # 50_000  # add collision penalty
+    steps_stage_1: int = 25_000  # 50_000  # add collision penalty
     steps_stage_2: int = 2_000_000  # add speed penalty
     steps_stage_3: int = 2_000_000  # add acceleration penalty
 
     reset_n_critic_layers: Optional[int] = None
-    reset_buffer: bool = True
+    reset_n_actor_layers: Optional[int] = None
+    reset_buffer: bool = False
+    reset_frames: bool = False
+    num_updates_after_update: int = steps_stage_1
 
 
 class RLConfig(BaseModel):
@@ -21,7 +24,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 100_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -52,7 +55,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 10_000
+    replay_buffer_size: int = 100_000
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0
@@ -70,6 +73,9 @@ class RLConfig(BaseModel):
     first_reduce_frame: int = 10_000
     eta_min: Optional[float] = 1e-6  # minimum learning rate
 
+    # kl approx
+    kl_approx_method: str = "abs"  # choices: ["logp", "abs"]
+
 
 class SACConfig(RLConfig):
     actor_lr: float = 3.0e-4
@@ -78,6 +84,7 @@ class SACConfig(RLConfig):
     target_update_polyak: float = 0.995
     alpha_init: float = 1.0
     min_alpha: Optional[float] = None
+    kl_beta: Optional[float] = None
 
 
 class TD3Config(RLConfig):
@@ -117,18 +124,20 @@ class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
     env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum, curriculum_step, multiply
+    reward_mode: Optional[str] = "sum"  # vals: sum, curriculum, curriculum_step, multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
-    seed: int = 200  # 10, 100, 200
+    seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    alpha: float = 0.5
-    wg: float = 1 - alpha
-    wc: float = alpha
+    # alpha: float = 0.9
+    # wg: float = 1 - alpha
+    # wc: float = alpha
+    wg: float = .15
+    wc: float = 0.45
 
     w1: float = wc / 3  # speed
     w2: float = wc / 3  # acceleration

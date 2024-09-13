@@ -42,7 +42,7 @@ def make_env(config, **kwargs):
         if config.use_vec_norm:
             transform_list += [VecNorm(decay=0.9),]
         t_env = TransformedEnv(raw_env, Compose(*transform_list))
-        reader = default_info_dict_reader(["success", "collided"])#+rwd_info_keys)
+        reader = default_info_dict_reader(["success", "collided", "full_reward"])
         t_env.set_info_dict_reader(info_dict_reader=reader)
         return t_env
 

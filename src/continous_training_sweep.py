@@ -38,14 +38,13 @@ logging.basicConfig(level=logging.ERROR)
 
 
 def run():
-    tags = ["testing"]
     _ = wandb.init(
         project="DRL-Traj-Planner",
-        tags=tags,
+        tags=["continuous_training"],
     )
     config = BaseConfig(**wandb.config)
-    config.wg = 1 - config.alpha
-    config.wc = config.alpha
+    # config.wg = 1 - config.alpha
+    # config.wc = config.alpha
 
     config.w1 = config.wc / 3  # speed
     config.w2 = config.wc / 3  # acceleration
@@ -54,6 +53,7 @@ def run():
 
     wandb.config.update(config.model_dump())
 
+    print(f"seed: {config.seed}")
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)

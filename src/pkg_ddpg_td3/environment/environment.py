@@ -152,8 +152,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.path = LineString(path)
         return len(path) > 0
 
-    def get_info(self) -> dict:
-        return {"success": [self.reached_goal], 'collided': [self.collided]}
+    def get_info(self, full_reward: float = 0.) -> dict:
+        return {"success": [self.reached_goal], 'collided': [self.collided], 'full_reward': [full_reward]}
 
     def get_observation(self) -> dict:
         """Collects observations from all components and returns them"""
@@ -244,15 +244,15 @@ class TrajectoryPlannerEnvironment(gym.Env):
         else:
             k = self.k if 'curriculum' in self.reward_mode else 1.
             constraint_rewards = (rwd_dict['CollisionReward']
-                                  + rwd_dict['NormSpeedReward']
                                   + rwd_dict['NormAccelerationReward']
                                   + rwd_dict['NormCrossTrackReward'])
 
-            # TODO add mode with stages, where k=0 in stage 0 and k=1 in stage 1 (switch at 50k steps)
-
             reward = (rwd_dict['ReachGoalReward']
+                      + rwd_dict['NormSpeedReward']
                       + rwd_dict['NormGoalDistanceReward']
                       + k * constraint_rewards)
+
+        full_reward = sum(rwd_dict.values())
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
@@ -262,10 +262,11 @@ class TrajectoryPlannerEnvironment(gym.Env):
                                      + rwd_dict['NormAccelerationReward'])
             log_stats['rewards/combined_reward_dense'] = combined_reward_dense
             log_stats['rewards/k'] = k
+            log_stats['rewards/full_reward'] = full_reward
             wandb.log(log_stats)
 
         terminated = self.update_termination()
-        info = self.get_info()
+        info = self.get_info(full_reward)
 
         if GYM_0_22_X:
             return observation, reward, terminated, False, info

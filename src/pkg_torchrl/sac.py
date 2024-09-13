@@ -59,9 +59,13 @@ class SAC(AlgoBase):
 
         for l_key, o_key in zip(loss_keys, optim_keys):
             loss = loss_td[l_key]
-            # self.target_actor is not None:
 
-            # TODO add kl div loss here
+            # add kl loss if present
+            if (self.config.kl_beta is not None
+                    and l_key == "loss_actor"
+                    and "kl_loss" in loss_td.keys()):
+                loss += self.config.kl_beta * loss_td["kl_loss"]
+
             optim = self.optim[o_key]
             loss.backward()
             params = optim.param_groups[0]["params"]
@@ -69,7 +73,7 @@ class SAC(AlgoBase):
             optim.step()
             optim.zero_grad()
 
-        return loss_td.select(*loss_keys).detach()
+        return loss_td.detach()
 
 
 if __name__ == '__main__':

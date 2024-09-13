@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import time
 import tqdm
+import copy
 
 import wandb
 import torch
@@ -97,6 +98,7 @@ class AlgoBase(ABC):
         self.advantage_module = None
         self.target_net_updater = None
         self.is_pretrained = False
+        self.updated_curriculum = False
 
         self.curriculum_stage = 0
         self.pretrained_actor_is_reset = False
@@ -105,6 +107,8 @@ class AlgoBase(ABC):
         self._init_loss_module()
         self._init_optimizer()
         self._post_init_optimizer()
+
+        self.kl_loss_module = nn.KLDivLoss(reduction="batchmean", log_target=True)
 
         self.replay_buffer = make_replay_buffer(
             batch_size=self.config.batch_size,
@@ -126,7 +130,7 @@ class AlgoBase(ABC):
         pass
     
     @abstractmethod
-    def _loss_backward(self) -> torch.Tensor:
+    def _loss_backward(self, loss_td) -> torch.Tensor:
         pass
 
     def get_action_dist(self, obs):
@@ -134,7 +138,7 @@ class AlgoBase(ABC):
             obs = obs["observation"]
             if not isinstance(obs, torch.Tensor):
                 obs = torch.from_numpy(obs).to(torch.float32)
-            obs = TensorDict({"observation": obs})#, [])
+            obs = TensorDict({"observation": obs})
 
         with torch.no_grad():
             act_dist = self.model.policy.get_dist(obs)
@@ -196,16 +200,17 @@ class AlgoBase(ABC):
         self.train_env.close()
 
     def set_curriculum_stage(self, stage: int):
-        reset_n_critic_layers = self.config.curriculum.reset_n_critic_layers
+        # reset_n_critic_layers = self.config.curriculum.reset_n_critic_layers
+        # reset_n_actor_layers = self.config.curriculum.reset_n_actor_layers
 
         self.train_env.unwrapped.set_curriculum_stage(stage)
         self.eval_env.unwrapped.set_curriculum_stage(stage)
 
-        if reset_n_critic_layers is not None:
-            reset_critic(self.model["value"], reset_n_critic_layers)
-            # reinit loss module to update target net as well
-            # self._init_loss_module()
-            # self._init_optimizer()
+        # if reset_n_actor_layers is not None:
+        #     reset_actor(self.model["policy"], reset_n_actor_layers)
+
+        # if reset_n_critic_layers is not None:
+        #     reset_critic(self.model["value"], reset_n_critic_layers)
 
         if self.config.curriculum.reset_buffer:
             self.replay_buffer.empty()
@@ -213,6 +218,7 @@ class AlgoBase(ABC):
         print(f"Curriculum stage: {stage}")
 
         self.curriculum_stage = stage
+        self.updated_curriculum = True
 
     def _maybe_update_curriculum(self, collected_frames):
         if not self.train_env.unwrapped.reward_mode == "curriculum_step":
@@ -221,17 +227,21 @@ class AlgoBase(ABC):
         if collected_frames >= self.config.curriculum.steps_stage_1 \
                 and self.curriculum_stage < 1:
             self.set_curriculum_stage(1)
-            collected_frames = 0
+            if self.config.curriculum.reset_frames:
+                collected_frames = 0
+            self.target_actor = copy.deepcopy(self.model.policy)
 
         if collected_frames >= self.config.curriculum.steps_stage_2 \
                 and self.curriculum_stage < 2:
             self.set_curriculum_stage(2)
-            collected_frames = 0
+            if self.config.curriculum.reset_frames:
+                collected_frames = 0
 
         if collected_frames >= self.config.curriculum.steps_stage_3 \
                 and self.curriculum_stage < 3:
             self.set_curriculum_stage(3)
-            collected_frames = 0
+            if self.config.curriculum.reset_frames:
+                collected_frames = 0
 
         return collected_frames
 
@@ -293,8 +303,24 @@ class AlgoBase(ABC):
                     reset_actor(self.model["policy"], self.config.n_reset_layers)
                 if self.config.n_reset_layers_critic is not None:
                     reset_critic(self.model["value"], self.config.n_reset_layers_critic)
-                losses = TensorDict({}, batch_size=[num_updates])
-                for i in range(num_updates):
+
+                # train longer after updating curriculum
+                if self.updated_curriculum:
+                    temp_num_updates = self.config.curriculum.num_updates_after_update
+                    self.updated_curriculum = False
+
+                    # if self.config.curriculum.reset_n_actor_layers is not None:
+                    #     reset_actor(self.model["policy"], self.config.curriculum.reset_n_actor_layers)
+
+                    # if self.config.curriculum.reset_n_critic_layers is not None:
+                    #     reset_critic(self.model["value"], self.config.curriculum.reset_n_critic_layers)
+
+                    print(f"Training for {temp_num_updates} updates after curriculum update")
+                else:
+                    temp_num_updates = num_updates
+
+                losses = TensorDict({}, batch_size=[temp_num_updates])
+                for i in range(temp_num_updates):
                     # Sample from replay buffer
                     sampled_tensordict = self.replay_buffer.sample()
                     if sampled_tensordict.device != self.device:
@@ -304,11 +330,29 @@ class AlgoBase(ABC):
                     else:
                         sampled_tensordict = sampled_tensordict.clone()
 
-                    # calculate target values if needed
-                    # if self.target_actor is not None:
-                    #     self.target_actor.log_prob(sampled_tensordict)
+                    # switch reward if curriculum is active
+                    # TODO train longer after curriculum step and don't have episodes without training
+                    if self.config.reward_mode == 'curriculum_step' and self.curriculum_stage > 0:
+                        # TODO how do I verify this works? should see a rise in all reward terms
+                        sampled_tensordict['next', 'reward'] = sampled_tensordict['next', 'full_reward']
+
                     # Compute loss
                     loss_td = self.loss_module(sampled_tensordict)
+
+                    # calculate target values if needed
+                    if self.target_actor is not None:
+                        with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+                            log_prior = self.target_actor.log_prob(sampled_tensordict)
+                        log_post = self.model.policy.log_prob(sampled_tensordict)
+
+                        if self.config.kl_approx_method == "logp":
+                            kl_loss = (log_post - log_prior).mean()
+                        elif self.config.kl_approx_method == "abs":
+                            kl_loss = 0.5 * nn.SmoothL1Loss()(log_post, log_prior)
+                        else:
+                            raise ValueError(f"Unsupported kl_approx_method {self.config.kl_approx_method}")
+                        # kl_loss = self.kl_loss_module(log_post, log_prior)
+                        loss_td['kl_loss'] = kl_loss
 
                     loss = self._loss_backward(loss_td)
                     # if use_wandb:
@@ -331,6 +375,7 @@ class AlgoBase(ABC):
             training_time = time.time() - training_start
             episode_end = tensordict["next", "done"]
             episode_rewards = tensordict["next", "episode_reward"][episode_end]
+            # if "success" in tensordict["next"].keys():
             episode_success = tensordict["next", "success"][episode_end]
             episode_collided = tensordict["next", "collided"][episode_end]
 
@@ -339,6 +384,7 @@ class AlgoBase(ABC):
             if len(episode_rewards) > 0:
                 episode_length = tensordict["next", "step_count"][episode_end]
                 metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
+                # if "success" in tensordict["next"].keys():
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
@@ -378,12 +424,13 @@ class AlgoBase(ABC):
                     eval_episode_end = eval_rollout["next", "done"]
                     eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
                     eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
+                    # if "success" in tensordict["next"].keys():
                     eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
                     eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
+                    metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
+                    metrics_to_log["eval/episode_length"] = eval_episode_len
 
                     metrics_to_log["eval/episode_reward"] = eval_episode_rewards.mean().item()
-                    metrics_to_log["eval/episode_length"] = eval_episode_len
-                    metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
                     metrics_to_log["eval/reward"] = eval_reward
                     metrics_to_log["eval/time"] = eval_time
                     metrics_to_log["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
