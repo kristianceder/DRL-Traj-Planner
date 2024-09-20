@@ -14,6 +14,10 @@ class CurriculumConfig(BaseModel):
     reset_frames: bool = False
     num_updates_after_update: int = steps_stage_1
 
+    # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
+    base_reward_keys: List[str] = ["g", "d", "s"] # ["g", "d", "s"]
+    constraint_reward_keys: List[str] = ["x", "c", "a"] # ["x", "c", "a"]
+
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -83,7 +87,7 @@ class SACConfig(RLConfig):
     alpha_lr: float = 3.0e-4
     target_update_polyak: float = 0.995
     alpha_init: float = 1.0
-    min_alpha: Optional[float] = None
+    min_alpha: Optional[float] = 0.01
     kl_beta: Optional[float] = None
 
 
@@ -127,7 +131,7 @@ class BaseConfig(BaseModel):
     reward_mode: Optional[str] = "sum"  # vals: sum, curriculum, curriculum_step, multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
-    seed: int = 10  # 10, 100, 200
+    seed: int = 200  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"
     use_vec_norm: bool = False
@@ -143,7 +147,7 @@ class BaseConfig(BaseModel):
     w2: float = wc / 3  # acceleration
     w3: float = wg  # goal distance
     w4: float = wc / 3  # cross track
-    k0: float = 0.001
+    k0: float = 0.0
     kc: float = 0.94
 
     algo: str = "sac"

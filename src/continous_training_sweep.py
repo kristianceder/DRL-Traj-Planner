@@ -57,6 +57,7 @@ def run():
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
+    torch.cuda.manual_seed_all(config.seed)
 
     map_key = config.map_key
     if map_key == 'corridor':

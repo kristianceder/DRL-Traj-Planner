@@ -44,7 +44,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
     external_obs_component: Union[Component, None] = None
 
     def __init__(self, components: list[Component], generate_map: MapGenerator, time_step: float = 0.2,
-                 use_wandb: bool = False, reward_mode: Optional[str] = None, k0: float = 0.001, kc: float = 0.95):
+                 use_wandb: bool = False, reward_mode: Optional[str] = None, k0: float = 0.001, kc: float = 0.95, config: Optional[dict] = None):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -59,6 +59,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.render_mode = "rgb_array"
         self.k = k0
         self.kc = kc
+        self.config = config
 
         if self.reward_mode is not None:
             print(f"Reward mode: {self.reward_mode}")
@@ -153,7 +154,10 @@ class TrajectoryPlannerEnvironment(gym.Env):
         return len(path) > 0
 
     def get_info(self, full_reward: float = 0.) -> dict:
-        return {"success": [self.reached_goal], 'collided': [self.collided], 'full_reward': [full_reward]}
+        return {"success": [self.reached_goal],
+                'collided': [self.collided],
+                # 'full_reward': [full_reward]
+                }
 
     def get_observation(self) -> dict:
         """Collects observations from all components and returns them"""
@@ -231,42 +235,61 @@ class TrajectoryPlannerEnvironment(gym.Env):
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
 
-        if self.reward_mode == 'multiply':
-            # binary terms
-            reward = rwd_dict['ReachGoalReward'] + rwd_dict['CollisionReward']
+        # if self.reward_mode == 'multiply':
+        #     # binary terms
+        #     reward = rwd_dict['ReachGoalReward'] + rwd_dict['CollisionReward']
 
-            # multiplicative terms
-            keys_to_exclude = ['ReachGoalReward', 'CollisionReward']
-            # project values from [-1, 1] to [0, 1]
-            filtered_values = [max(0., (v + 1.) / 2.) for k, v in rwd_dict.items() if k not in keys_to_exclude]
-            reward += functools.reduce(lambda x, y: x * y, filtered_values)
-            k = 1.
-        else:
-            k = self.k if 'curriculum' in self.reward_mode else 1.
-            constraint_rewards = (rwd_dict['CollisionReward']
-                                  + rwd_dict['NormAccelerationReward']
-                                  + rwd_dict['NormCrossTrackReward'])
+        #     # multiplicative terms
+        #     keys_to_exclude = ['ReachGoalReward', 'CollisionReward']
+        #     # project values from [-1, 1] to [0, 1]
+        #     filtered_values = [max(0., (v + 1.) / 2.) for k, v in rwd_dict.items() if k not in keys_to_exclude]
+        #     reward += functools.reduce(lambda x, y: x * y, filtered_values)
+        #     k = 1.
+        # else:
+        #     k = self.k if 'curriculum' in self.reward_mode else 1.
 
-            reward = (rwd_dict['ReachGoalReward']
-                      + rwd_dict['NormSpeedReward']
-                      + rwd_dict['NormGoalDistanceReward']
-                      + k * constraint_rewards)
+            # base_rewards = (rwd_dict['ReachGoalReward']
+            #                 + rwd_dict['NormSpeedReward']
+            #                 + rwd_dict['NormGoalDistanceReward'])
+            # constraint_rewards = (rwd_dict['CollisionReward']
+            #                       + rwd_dict['NormAccelerationReward']
+            #                       + rwd_dict['NormCrossTrackReward'])
 
-        full_reward = sum(rwd_dict.values())
+            # reward_term_dict = {
+            #     "g": rwd_dict['ReachGoalReward'],
+            #     "s": rwd_dict['NormSpeedReward'],
+            #     "d": rwd_dict['NormGoalDistanceReward'],
+            #     "c": rwd_dict['CollisionReward'],
+            #     "a": rwd_dict['NormAccelerationReward'],
+            #     "x": rwd_dict['NormCrossTrackReward']
+            # }
+
+            # base_rewards = 0.
+            # constraint_rewards = 0.
+            # for key, val in reward_term_dict.items():
+            #     if key in self.config.sac.curriculum.base_reward_keys:
+            #         base_rewards += val
+            #     elif key in self.config.sac.curriculum.constraint_reward_keys:
+            #         constraint_rewards += val
+
+            # reward = base_rewards + k * constraint_rewards
+
+        reward = sum(rwd_dict.values())
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/combined_reward'] = reward
-            combined_reward_dense = (rwd_dict['NormGoalDistanceReward']
-                                     + rwd_dict['NormSpeedReward']
-                                     + rwd_dict['NormAccelerationReward'])
-            log_stats['rewards/combined_reward_dense'] = combined_reward_dense
-            log_stats['rewards/k'] = k
-            log_stats['rewards/full_reward'] = full_reward
+            # combined_reward_dense = (rwd_dict['NormGoalDistanceReward']
+            #                          + rwd_dict['NormSpeedReward']
+            #                          + rwd_dict['NormAccelerationReward'])
+            # log_stats['rewards/combined_reward_dense'] = combined_reward_dense
+            # log_stats['rewards/k'] = k
+            # log_stats['rewards/full_reward'] = full_reward
             wandb.log(log_stats)
 
         terminated = self.update_termination()
-        info = self.get_info(full_reward)
+        info = self.get_info()#full_reward)
+        info['reward_dict'] = rwd_dict
 
         if GYM_0_22_X:
             return observation, reward, terminated, False, info

@@ -25,6 +25,7 @@ def make_env(config, **kwargs):
                      w3=config.w3,
                      w4=config.w4,
                      reward_mode=config.reward_mode,
+                     config=config,
                      k0=config.k0,
                      kc=config.kc,
                      device=config.device,

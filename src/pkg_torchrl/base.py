@@ -13,6 +13,7 @@ from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
 from torchrl.modules.distributions import TanhNormal
+import torch.distributions as torch_dist
 
 from .utils import get_activation, make_collector, make_replay_buffer, reset_actor, reset_critic
 
@@ -107,6 +108,9 @@ class AlgoBase(ABC):
         self._init_loss_module()
         self._init_optimizer()
         self._post_init_optimizer()
+
+        n_rewards = len(config.curriculum.base_reward_key)+ len(config.curriculum.constraint_reward_key)
+        self.w = torch.zeros(n_rewards)
 
         self.kl_loss_module = nn.KLDivLoss(reduction="batchmean", log_target=True)
 
@@ -330,8 +334,8 @@ class AlgoBase(ABC):
                     else:
                         sampled_tensordict = sampled_tensordict.clone()
 
-                    # switch reward if curriculum is active
-                    # TODO train longer after curriculum step and don't have episodes without training
+                    # switch reward if curriculum is active, to have the full reward for the history
+                    # TODO make this more elegentely, so that it works with more than one stage
                     if self.config.reward_mode == 'curriculum_step' and self.curriculum_stage > 0:
                         # TODO how do I verify this works? should see a rise in all reward terms
                         sampled_tensordict['next', 'reward'] = sampled_tensordict['next', 'full_reward']
@@ -389,6 +393,7 @@ class AlgoBase(ABC):
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
                 metrics_to_log["train/reward"] = tensordict["next", "reward"].mean().item()
+                metrics_to_log["train/full_reward"] = tensordict["next", "full_reward"].mean().item()
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
                 )
@@ -400,17 +405,11 @@ class AlgoBase(ABC):
             if collected_frames >= self.config.init_env_steps:
                 for k in losses.keys():
                     metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
-                # for k, v in loss_td.items():
-                #     metrics_to_log[f"train/{k}"] = v.item()
-                if "alpha" in loss_td.keys():
-                    metrics_to_log["train/alpha"] = loss_td["alpha"].item()
-                if "entropy" in loss_td.keys():
-                    metrics_to_log["train/entropy"] = loss_td["entropy"].item()
                 metrics_to_log["train/sampling_time"] = sampling_time
                 metrics_to_log["train/training_time"] = training_time
 
             # Evaluation
-            if abs(collected_frames % eval_iter) < frames_per_batch:
+            if abs(all_collected_frames % eval_iter) < frames_per_batch:
                 with set_exploration_type(ExplorationType.MODE), torch.no_grad():
                     eval_start = time.time()
                     eval_rollout = self.eval_env.rollout(
@@ -426,12 +425,25 @@ class AlgoBase(ABC):
                     eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
                     # if "success" in tensordict["next"].keys():
                     eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
+                    o_dist = self.model["policy"].get_dist(eval_rollout)    
+                    
+                    entropy = torch_dist.Normal(o_dist.loc, o_dist.scale).entropy().sum(-1).mean().item()
+
+                    if self.target_actor is not None:
+                        o_dist_base = self.target_actor.get_dist(eval_rollout)
+                        log_prior = o_dist_base.log_prob(eval_rollout['action'])
+                        log_post = o_dist.log_prob(eval_rollout['action'])
+                        kl = (log_post - log_prior).mean().item()
+                    else:
+                        kl = 0.0
                     eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
                     metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
                     metrics_to_log["eval/episode_length"] = eval_episode_len
-
+                    metrics_to_log["eval/entropy"] = entropy
+                    metrics_to_log["eval/kl"] = kl
                     metrics_to_log["eval/episode_reward"] = eval_episode_rewards.mean().item()
                     metrics_to_log["eval/reward"] = eval_reward
+                    metrics_to_log["eval/full_reward"] = eval_rollout["next", "full_reward"].mean().item()
                     metrics_to_log["eval/time"] = eval_time
                     metrics_to_log["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
             
