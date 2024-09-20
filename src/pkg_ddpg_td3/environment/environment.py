@@ -2,6 +2,7 @@ from time import time
 from packaging import version
 import functools
 
+import torch
 import wandb
 import gymnasium as gym
 from gymnasium import spaces
@@ -53,16 +54,17 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.generate_map = generate_map
         self.time_step = time_step
         self.use_wandb = use_wandb
-        self.reward_mode = reward_mode
-        self.curriculum_stage = 0
+        # self.reward_mode = reward_mode
+        # self.curriculum_stage = 0
         self.render_cnt = 0
         self.render_mode = "rgb_array"
-        self.k = k0
-        self.kc = kc
+        # self.k = k0
+        # self.kc = kc
         self.config = config
+        self.reward_length = len(self.config.sac.curriculum.base_reward_keys) + len(self.config.sac.curriculum.constraint_reward_keys)
 
-        if self.reward_mode is not None:
-            print(f"Reward mode: {self.reward_mode}")
+        # if self.reward_mode is not None:
+        #     print(f"Reward mode: {self.reward_mode}")
 
         for component in self.components:
             component.env = self
@@ -153,10 +155,11 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.path = LineString(path)
         return len(path) > 0
 
-    def get_info(self, full_reward: float = 0.) -> dict:
+    def get_info(self, reward: float = 0., reward_vec: Optional[torch.Tensor] = None) -> dict:
         return {"success": [self.reached_goal],
                 'collided': [self.collided],
-                # 'full_reward': [full_reward]
+                'full_reward': [reward],
+                'reward_tensor': reward_vec if reward_vec is not None else torch.zeros((self.reward_length), dtype=torch.float32)
                 }
 
     def get_observation(self) -> dict:
@@ -215,14 +218,14 @@ class TrajectoryPlannerEnvironment(gym.Env):
     def step_agent(self, action: int) -> None:
         self.agent.step(action, self.time_step)
 
-    def set_curriculum_stage(self, new_stage: int) -> None:
-        print(f"Setting curriculum stage to {new_stage}")
-        self.curriculum_stage = new_stage
-        if new_stage > 0:
-            self.k = 1.
+    # def set_curriculum_stage(self, new_stage: int) -> None:
+    #     print(f"Setting curriculum stage to {new_stage}")
+    #     self.curriculum_stage = new_stage
+    #     if new_stage > 0:
+    #         self.k = 1.
 
-    def step_k(self):
-        self.k = self.k**self.kc
+    # def step_k(self):
+    #     self.k = self.k**self.kc
 
     def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
 
@@ -255,26 +258,37 @@ class TrajectoryPlannerEnvironment(gym.Env):
             #                       + rwd_dict['NormAccelerationReward']
             #                       + rwd_dict['NormCrossTrackReward'])
 
-            # reward_term_dict = {
-            #     "g": rwd_dict['ReachGoalReward'],
-            #     "s": rwd_dict['NormSpeedReward'],
-            #     "d": rwd_dict['NormGoalDistanceReward'],
-            #     "c": rwd_dict['CollisionReward'],
-            #     "a": rwd_dict['NormAccelerationReward'],
-            #     "x": rwd_dict['NormCrossTrackReward']
-            # }
+        reward_term_dict = {
+            "g": rwd_dict['ReachGoalReward'],
+            "s": rwd_dict['NormSpeedReward'],
+            "d": rwd_dict['NormGoalDistanceReward'],
+            "c": rwd_dict['CollisionReward'],
+            "a": rwd_dict['NormAccelerationReward'],
+            "x": rwd_dict['NormCrossTrackReward']
+        }
 
-            # base_rewards = 0.
-            # constraint_rewards = 0.
-            # for key, val in reward_term_dict.items():
-            #     if key in self.config.sac.curriculum.base_reward_keys:
-            #         base_rewards += val
-            #     elif key in self.config.sac.curriculum.constraint_reward_keys:
-            #         constraint_rewards += val
+        base_rewards = 0.
+        constraint_rewards = 0.
+        for key, val in reward_term_dict.items():
+            if key in self.config.sac.curriculum.base_reward_keys:
+                base_rewards += val
+            elif key in self.config.sac.curriculum.constraint_reward_keys:
+                constraint_rewards += val
 
-            # reward = base_rewards + k * constraint_rewards
+        reward = base_rewards# + k * constraint_rewards
 
-        reward = sum(rwd_dict.values())
+        reward_term_vocab = {
+            "g": 'ReachGoalReward',
+            "s": 'NormSpeedReward',
+            "d": 'NormGoalDistanceReward',
+            "c": 'CollisionReward',
+            "a": 'NormAccelerationReward',
+            "x": 'NormCrossTrackReward'
+        }
+
+        rwd_order = self.config.sac.curriculum.base_reward_keys + self.config.sac.curriculum.constraint_reward_keys
+        reward_vec = torch.tensor([rwd_dict[reward_term_vocab[k]] for k in rwd_order], dtype=torch.float32)
+        full_reward = sum(rwd_dict.values())
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
@@ -284,12 +298,11 @@ class TrajectoryPlannerEnvironment(gym.Env):
             #                          + rwd_dict['NormAccelerationReward'])
             # log_stats['rewards/combined_reward_dense'] = combined_reward_dense
             # log_stats['rewards/k'] = k
-            # log_stats['rewards/full_reward'] = full_reward
+            log_stats['rewards/full_reward'] = full_reward
             wandb.log(log_stats)
 
         terminated = self.update_termination()
-        info = self.get_info()#full_reward)
-        info['reward_dict'] = rwd_dict
+        info = self.get_info(full_reward, reward_vec)
 
         if GYM_0_22_X:
             return observation, reward, terminated, False, info

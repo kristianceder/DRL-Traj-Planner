@@ -109,8 +109,14 @@ class AlgoBase(ABC):
         self._init_optimizer()
         self._post_init_optimizer()
 
-        n_rewards = len(config.curriculum.base_reward_key)+ len(config.curriculum.constraint_reward_key)
-        self.w = torch.zeros(n_rewards)
+        self.len_constraint_rewards = len(config.curriculum.constraint_reward_keys)
+        self.len_base_rewards = len(config.curriculum.base_reward_keys)
+        n_rewards = self.len_base_rewards + self.len_constraint_rewards
+        if 'curriculum' in self.config.reward_mode:
+            self.w = torch.zeros(n_rewards)
+            self.w[:self.len_base_rewards] = 1.
+        else:
+            self.w = torch.ones(n_rewards)
 
         self.kl_loss_module = nn.KLDivLoss(reduction="batchmean", log_target=True)
 
@@ -203,12 +209,12 @@ class AlgoBase(ABC):
         del td
         self.train_env.close()
 
-    def set_curriculum_stage(self, stage: int):
+    # def set_curriculum_stage(self, stage: int):
         # reset_n_critic_layers = self.config.curriculum.reset_n_critic_layers
         # reset_n_actor_layers = self.config.curriculum.reset_n_actor_layers
 
-        self.train_env.unwrapped.set_curriculum_stage(stage)
-        self.eval_env.unwrapped.set_curriculum_stage(stage)
+        # self.train_env.unwrapped.set_curriculum_stage(stage)
+        # self.eval_env.unwrapped.set_curriculum_stage(stage)
 
         # if reset_n_actor_layers is not None:
         #     reset_actor(self.model["policy"], reset_n_actor_layers)
@@ -216,38 +222,71 @@ class AlgoBase(ABC):
         # if reset_n_critic_layers is not None:
         #     reset_critic(self.model["value"], reset_n_critic_layers)
 
-        if self.config.curriculum.reset_buffer:
-            self.replay_buffer.empty()
-            print("Emptied replay buffer")
-        print(f"Curriculum stage: {stage}")
+        # if self.config.curriculum.reset_buffer:
+        #     self.replay_buffer.empty()
+        #     print("Emptied replay buffer")
+        # print(f"Curriculum stage: {stage}")
 
-        self.curriculum_stage = stage
-        self.updated_curriculum = True
+        # self.curriculum_stage = stage
+        # self.updated_curriculum = True
 
     def _maybe_update_curriculum(self, collected_frames):
-        if not self.train_env.unwrapped.reward_mode == "curriculum_step":
+        if not self.config.reward_mode == "curriculum_step":
             return collected_frames
 
         if collected_frames >= self.config.curriculum.steps_stage_1 \
                 and self.curriculum_stage < 1:
-            self.set_curriculum_stage(1)
             if self.config.curriculum.reset_frames:
                 collected_frames = 0
+            if self.config.curriculum.reset_buffer:
+                self.replay_buffer.empty()
+                print("Emptied replay buffer")
+            print(f"Curriculum stage: {1}")
+            self.w = torch.ones_like(self.w)
+            self.curriculum_stage = 1
+            self.updated_curriculum = True
             self.target_actor = copy.deepcopy(self.model.policy)
 
-        if collected_frames >= self.config.curriculum.steps_stage_2 \
-                and self.curriculum_stage < 2:
-            self.set_curriculum_stage(2)
-            if self.config.curriculum.reset_frames:
-                collected_frames = 0
-
-        if collected_frames >= self.config.curriculum.steps_stage_3 \
-                and self.curriculum_stage < 3:
-            self.set_curriculum_stage(3)
-            if self.config.curriculum.reset_frames:
-                collected_frames = 0
-
         return collected_frames
+    
+    def step_curriculum(self, collected_frames):
+        if self.config.reward_mode == 'sum':
+            return None
+
+        # this resets collected_frames = 0 if proceeds to next stage
+        if self.config.reward_mode == 'curriculum_step':
+            collected_frames = self._maybe_update_curriculum(collected_frames)
+            return collected_frames
+
+        elif self.config.reward_mode == 'curriculum':
+            # TODO change w and step k
+            raise NotImplementedError
+        else:
+            raise ValueError(f"Unsupported curriculum mode: {self.config.curriculum_mode}")
+
+    def compute_kl_loss(self, sampled_tensordict):
+        with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+            log_prior = self.target_actor.log_prob(sampled_tensordict)
+        log_post = self.model.policy.log_prob(sampled_tensordict)
+
+        if self.config.kl_approx_method == "logp":
+            kl_loss = (log_post - log_prior).mean()
+        elif self.config.kl_approx_method == "abs":
+            kl_loss = 0.5 * nn.SmoothL1Loss()(log_post, log_prior)
+        else:
+            raise ValueError(f"Unsupported kl_approx_method {self.config.kl_approx_method}")
+        return kl_loss
+
+    def compute_reward(self, reward_tensor):
+        # computing the reward solely depends on self.w
+        assert self.w.shape[-1] == reward_tensor.shape[-1]
+
+        # rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
+        if self.curriculum_stage == 0:
+            rewards = reward_tensor[:,:self.len_base_rewards].sum(dim=-1).unsqueeze(-1)
+        else:
+            rewards = reward_tensor.sum(dim=-1).unsqueeze(-1)
+        return rewards
 
     def train(self, use_wandb=True, env_maker=None):
         # Create off-policy collector
@@ -312,13 +351,6 @@ class AlgoBase(ABC):
                 if self.updated_curriculum:
                     temp_num_updates = self.config.curriculum.num_updates_after_update
                     self.updated_curriculum = False
-
-                    # if self.config.curriculum.reset_n_actor_layers is not None:
-                    #     reset_actor(self.model["policy"], self.config.curriculum.reset_n_actor_layers)
-
-                    # if self.config.curriculum.reset_n_critic_layers is not None:
-                    #     reset_critic(self.model["value"], self.config.curriculum.reset_n_critic_layers)
-
                     print(f"Training for {temp_num_updates} updates after curriculum update")
                 else:
                     temp_num_updates = num_updates
@@ -327,42 +359,41 @@ class AlgoBase(ABC):
                 for i in range(temp_num_updates):
                     # Sample from replay buffer
                     sampled_tensordict = self.replay_buffer.sample()
+                    sampled_tensordict = sampled_tensordict.clone()
+
                     if sampled_tensordict.device != self.device:
                         sampled_tensordict = sampled_tensordict.to(
                             self.device, non_blocking=True
                         )
-                    else:
-                        sampled_tensordict = sampled_tensordict.clone()
+                    # else:
+                    
 
-                    # switch reward if curriculum is active, to have the full reward for the history
-                    # TODO make this more elegentely, so that it works with more than one stage
-                    if self.config.reward_mode == 'curriculum_step' and self.curriculum_stage > 0:
-                        # TODO how do I verify this works? should see a rise in all reward terms
-                        sampled_tensordict['next', 'reward'] = sampled_tensordict['next', 'full_reward']
+                    # compute the reward during training as it depends on w which changes
+                    # this way we can keep the whole replay buffer when changing reward weights
+                    # self.compute_reward(sampled_tensordict)
+                    # assert sampled_tensordict["next", "reward_tensor"].sum() == sampled_tensordict["next", "full_reward"].sum()
+                    # assert round(sampled_tensordict['next','reward_tensor'].sum().item(), 1) == round(sampled_tensordict['next', 'full_reward'].float().sum().item(), 1), \
+                    #     print(round(sampled_tensordict['next','reward_tensor'].sum().item(), 1), round(sampled_tensordict['next', 'full_reward'].float().sum().item(), 1))
+
+                    # sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    if self.curriculum_stage > 0:
+                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
+                    # else:
+                    #     new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    #     og_reward = sampled_tensordict["next", "reward"]
+                    #     if (new_reward - og_reward).abs().mean() >= 0:
+                    #     print(sampled_tensordict["next", "reward_tensor"][:3])
+                    #     print(f"New reward: {new_reward[:3]}, Old reward: {og_reward[:3]}")
 
                     # Compute loss
                     loss_td = self.loss_module(sampled_tensordict)
 
                     # calculate target values if needed
                     if self.target_actor is not None:
-                        with set_exploration_type(ExplorationType.MODE), torch.no_grad():
-                            log_prior = self.target_actor.log_prob(sampled_tensordict)
-                        log_post = self.model.policy.log_prob(sampled_tensordict)
+                        loss_td['kl_loss'] = self.compute_kl_loss(sampled_tensordict)
 
-                        if self.config.kl_approx_method == "logp":
-                            kl_loss = (log_post - log_prior).mean()
-                        elif self.config.kl_approx_method == "abs":
-                            kl_loss = 0.5 * nn.SmoothL1Loss()(log_post, log_prior)
-                        else:
-                            raise ValueError(f"Unsupported kl_approx_method {self.config.kl_approx_method}")
-                        # kl_loss = self.kl_loss_module(log_post, log_prior)
-                        loss_td['kl_loss'] = kl_loss
 
                     loss = self._loss_backward(loss_td)
-                    # if use_wandb:
-                    #     loss_log = {f"losses/{k}": loss.get(k).mean().item() for k in loss.keys()}
-                    #     wandb.log(loss_log, step=collected_frames)
-
                     losses[i] = loss
 
                     # Update qnet_target params
@@ -386,13 +417,15 @@ class AlgoBase(ABC):
             # Logging
             metrics_to_log = {}
             if len(episode_rewards) > 0:
+                # TODO create logging function that can be reused in evaluation
                 episode_length = tensordict["next", "step_count"][episode_end]
+                metrics_to_log['train/w'] = self.w.sum().item()
                 metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
                 # if "success" in tensordict["next"].keys():
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
-                metrics_to_log["train/reward"] = tensordict["next", "reward"].mean().item()
+                metrics_to_log["train/reward"] = self.compute_reward(tensordict["next", "reward_tensor"]).mean().item() # this is a bit weird but should do the job
                 metrics_to_log["train/full_reward"] = tensordict["next", "full_reward"].mean().item()
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
@@ -457,16 +490,11 @@ class AlgoBase(ABC):
                 else:
                     self.scheduler.step()
 
-            # this resets collected_frames = 0 if proceeds to next stage
-            if self.config.reward_mode == 'curriculum_step':
-                collected_frames = self._maybe_update_curriculum(collected_frames)
-            elif self.config.reward_mode == 'curriculum':
-                self.train_env.unwrapped.step_k()
-                self.eval_env.unwrapped.step_k()
-            elif self.config.reward_mode == 'sum' or self.config.reward_mode == 'multiply':
-                pass
-            else:
-                raise ValueError(f"Unsupported curriculum mode: {self.config.curriculum_mode}")
+            # TODO step curriculum
+            out = self.step_curriculum(collected_frames)
+
+            if out is not None:
+                collected_frames = out
             sampling_start = time.time()
 
         collector.shutdown()
