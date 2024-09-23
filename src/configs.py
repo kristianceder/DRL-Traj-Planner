@@ -131,22 +131,17 @@ class BaseConfig(BaseModel):
     reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum, curriculum_step, multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
-    seed: int = 10  # 10, 100, 200
+    seed: int = 100  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    # alpha: float = 0.9
-    # wg: float = 1 - alpha
-    # wc: float = alpha
-    wg: float = .15
-    wc: float = 0.45
+    w1: float = .15  # speed
+    w2: float = .15  # acceleration
+    w3: float = .15  # goal distance
+    w4: float = .15  # cross track
 
-    w1: float = wc / 3  # speed
-    w2: float = wc / 3  # acceleration
-    w3: float = wg  # goal distance
-    w4: float = wc / 3  # cross track
     k0: float = 0.0
     kc: float = 0.94
 

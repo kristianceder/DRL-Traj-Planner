@@ -29,37 +29,10 @@ from pkg_torchrl.td3 import TD3
 
 from configs import BaseConfig
 
-logging.basicConfig(level=logging.ERROR)
-
-# TODO (kilian)
-# make speed of obstacles a parameter
-# increasing discount factor
-# n-step schedule
+logging.basicConfig(level=logging.INFO)
 
 
-def run():
-    _ = wandb.init(
-        project="DRL-Traj-Planner",
-        tags=["continuous_training"],
-    )
-    config = BaseConfig(**wandb.config)
-    # config.wg = 1 - config.alpha
-    # config.wc = config.alpha
-
-    config.w1 = config.wc / 3  # speed
-    config.w2 = config.wc / 3  # acceleration
-    config.w3 = config.wg  # goal distance
-    config.w4 = config.wc / 3  # cross track
-
-    wandb.config.update(config.model_dump())
-
-    print(f"seed: {config.seed}")
-    random.seed(config.seed)
-    np.random.seed(config.seed)
-    torch.manual_seed(config.seed)
-    torch.cuda.manual_seed_all(config.seed)
-
-    map_key = config.map_key
+def get_map(map_key):
     if map_key == 'corridor':
         generate_map = generate_map_corridor
     elif map_key == 'dynamic_convex_obstacle':
@@ -68,6 +41,25 @@ def run():
         generate_map = generate_map_static_nonconvex_obstacle
     else:
         logging.error(f'Could not find map key {map_key}')
+    return generate_map
+
+
+def run():
+    _ = wandb.init(
+        project="DRL-Traj-Planner",
+        tags=["continuous_training"],
+    )
+    config = BaseConfig(**wandb.config)
+    wandb.config.update(config.model_dump())
+
+    logging.info(f"seed: {config.seed}")
+
+    random.seed(config.seed)
+    np.random.seed(config.seed)
+    torch.manual_seed(config.seed)
+    torch.cuda.manual_seed_all(config.seed)
+
+    generate_map = get_map(config.map_key)
 
     train_env = make_env(config, generate_map=generate_map, use_wandb=True)
     eval_env = make_env(config, generate_map=generate_map)

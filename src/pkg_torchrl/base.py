@@ -276,16 +276,18 @@ class AlgoBase(ABC):
         else:
             raise ValueError(f"Unsupported kl_approx_method {self.config.kl_approx_method}")
         return kl_loss
+    
+    def set_w(self, new_w):
+        if not isinstance(new_w, torch.Tensor):
+            new_w = torch.tensor(new_w)
+        assert new_w.shape == self.w.shape, f"new_w shape {new_w.shape} != w shape {self.w.shape}"
+        self.w = new_w
 
     def compute_reward(self, reward_tensor):
         # computing the reward solely depends on self.w
         assert self.w.shape[-1] == reward_tensor.shape[-1]
 
-        # rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
-        if self.curriculum_stage == 0:
-            rewards = reward_tensor[:,:self.len_base_rewards].sum(dim=-1).unsqueeze(-1)
-        else:
-            rewards = reward_tensor.sum(dim=-1).unsqueeze(-1)
+        rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
         return rewards
 
     def train(self, use_wandb=True, env_maker=None):
@@ -299,6 +301,7 @@ class AlgoBase(ABC):
         all_collected_frames = 0
         pbar = tqdm.tqdm(total=self.config.total_frames)
         last_success_rate = 0.0
+        metrics_to_log = None
 
         num_updates = int(
             self.config.env_per_collector
@@ -330,22 +333,22 @@ class AlgoBase(ABC):
             collected_frames += current_frames
             all_collected_frames += current_frames
 
-            if not self.pretrained_actor_is_reset \
-                    and collected_frames >= self.config.init_random_frames \
-                    and self.is_pretrained \
-                    and self.config.reset_pretrained_actor:
-                print('Resetting actor')
-                reset_actor(self.model['policy'], 20)
-                self.pretrained_actor_is_reset = True
+            # if not self.pretrained_actor_is_reset \
+            #         and collected_frames >= self.config.init_random_frames \
+            #         and self.is_pretrained \
+            #         and self.config.reset_pretrained_actor:
+            #     print('Resetting actor')
+            #     reset_actor(self.model['policy'], 20)
+            #     self.pretrained_actor_is_reset = True
 
             # Optimization steps
             training_start = time.time()
             if collected_frames >= self.config.init_env_steps:
                 # print(f"Train {collected_frames} frames")
-                if self.config.n_reset_layers is not None:
-                    reset_actor(self.model["policy"], self.config.n_reset_layers)
-                if self.config.n_reset_layers_critic is not None:
-                    reset_critic(self.model["value"], self.config.n_reset_layers_critic)
+                # if self.config.n_reset_layers is not None:
+                #     reset_actor(self.model["policy"], self.config.n_reset_layers)
+                # if self.config.n_reset_layers_critic is not None:
+                #     reset_critic(self.model["value"], self.config.n_reset_layers_critic)
 
                 # train longer after updating curriculum
                 if self.updated_curriculum:
@@ -359,31 +362,36 @@ class AlgoBase(ABC):
                 for i in range(temp_num_updates):
                     # Sample from replay buffer
                     sampled_tensordict = self.replay_buffer.sample()
-                    sampled_tensordict = sampled_tensordict.clone()
 
                     if sampled_tensordict.device != self.device:
                         sampled_tensordict = sampled_tensordict.to(
                             self.device, non_blocking=True
                         )
-                    # else:
-                    
+                    else:
+                        sampled_tensordict = sampled_tensordict.clone()
 
                     # compute the reward during training as it depends on w which changes
                     # this way we can keep the whole replay buffer when changing reward weights
-                    # self.compute_reward(sampled_tensordict)
-                    # assert sampled_tensordict["next", "reward_tensor"].sum() == sampled_tensordict["next", "full_reward"].sum()
-                    # assert round(sampled_tensordict['next','reward_tensor'].sum().item(), 1) == round(sampled_tensordict['next', 'full_reward'].float().sum().item(), 1), \
-                    #     print(round(sampled_tensordict['next','reward_tensor'].sum().item(), 1), round(sampled_tensordict['next', 'full_reward'].float().sum().item(), 1))
 
-                    # sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
-                    if self.curriculum_stage > 0:
-                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
+                    sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    # new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    # if self.curriculum_stage > 0:
+                    #     og_reward = sampled_tensordict["next", "full_reward"]
                     # else:
-                    #     new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
                     #     og_reward = sampled_tensordict["next", "reward"]
-                    #     if (new_reward - og_reward).abs().mean() >= 0:
-                    #     print(sampled_tensordict["next", "reward_tensor"][:3])
-                    #     print(f"New reward: {new_reward[:3]}, Old reward: {og_reward[:3]}")
+
+                    # sampled_tensordict["next", "reward"] = og_reward
+                    # # sampled_tensordict["next", "reward"] = new_reward
+                    # abs_err = (new_reward - og_reward)
+                    # abs_err_map = abs_err.abs() > 1e-7
+                    # if abs_err_map.any():
+                    #     err_rwd_new = new_reward[abs_err_map]
+                    #     err_rwd_old = og_reward[abs_err_map]
+
+                    #     print(err_rwd_new)
+                    #     print(err_rwd_old)
+                    #     print(abs_err[abs_err_map])
+                    #     print("----")
 
                     # Compute loss
                     loss_td = self.loss_module(sampled_tensordict)
@@ -410,18 +418,15 @@ class AlgoBase(ABC):
             training_time = time.time() - training_start
             episode_end = tensordict["next", "done"]
             episode_rewards = tensordict["next", "episode_reward"][episode_end]
-            # if "success" in tensordict["next"].keys():
             episode_success = tensordict["next", "success"][episode_end]
             episode_collided = tensordict["next", "collided"][episode_end]
 
             # Logging
             metrics_to_log = {}
             if len(episode_rewards) > 0:
-                # TODO create logging function that can be reused in evaluation
                 episode_length = tensordict["next", "step_count"][episode_end]
                 metrics_to_log['train/w'] = self.w.sum().item()
                 metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
-                # if "success" in tensordict["next"].keys():
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
@@ -443,42 +448,8 @@ class AlgoBase(ABC):
 
             # Evaluation
             if abs(all_collected_frames % eval_iter) < frames_per_batch:
-                with set_exploration_type(ExplorationType.MODE), torch.no_grad():
-                    eval_start = time.time()
-                    eval_rollout = self.eval_env.rollout(
-                        eval_rollout_steps,
-                        self.model["policy"],
-                        auto_cast_to_device=True,
-                        break_when_any_done=False,
-                    )
-                    eval_time = time.time() - eval_start
-                    eval_reward = eval_rollout["next", "reward"].mean().item()
-                    eval_episode_end = eval_rollout["next", "done"]
-                    eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
-                    eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
-                    # if "success" in tensordict["next"].keys():
-                    eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
-                    o_dist = self.model["policy"].get_dist(eval_rollout)    
-                    
-                    entropy = torch_dist.Normal(o_dist.loc, o_dist.scale).entropy().sum(-1).mean().item()
-
-                    if self.target_actor is not None:
-                        o_dist_base = self.target_actor.get_dist(eval_rollout)
-                        log_prior = o_dist_base.log_prob(eval_rollout['action'])
-                        log_post = o_dist.log_prob(eval_rollout['action'])
-                        kl = (log_post - log_prior).mean().item()
-                    else:
-                        kl = 0.0
-                    eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
-                    metrics_to_log["eval/episode_success"] = eval_episode_success.float().mean().item()
-                    metrics_to_log["eval/episode_length"] = eval_episode_len
-                    metrics_to_log["eval/entropy"] = entropy
-                    metrics_to_log["eval/kl"] = kl
-                    metrics_to_log["eval/episode_reward"] = eval_episode_rewards.mean().item()
-                    metrics_to_log["eval/reward"] = eval_reward
-                    metrics_to_log["eval/full_reward"] = eval_rollout["next", "full_reward"].mean().item()
-                    metrics_to_log["eval/time"] = eval_time
-                    metrics_to_log["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
+                eval_stats = self.evaluate(eval_rollout_steps)
+                metrics_to_log.update(eval_stats)
             
             if use_wandb:
                 wandb.log(metrics_to_log, step=all_collected_frames)
@@ -490,9 +461,7 @@ class AlgoBase(ABC):
                 else:
                     self.scheduler.step()
 
-            # TODO step curriculum
             out = self.step_curriculum(collected_frames)
-
             if out is not None:
                 collected_frames = out
             sampling_start = time.time()
@@ -502,6 +471,56 @@ class AlgoBase(ABC):
         end_time = time.time()
         execution_time = end_time - start_time
         print(f"Training took {execution_time:.2f} seconds to finish")
+
+        return metrics_to_log
+    
+    def evaluate(self, eval_rollout_steps, return_means=True):
+        eval_metrics = {}
+        with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+            eval_start = time.time()
+            eval_rollout = self.eval_env.rollout(
+                eval_rollout_steps,
+                self.model["policy"],
+                auto_cast_to_device=True,
+                break_when_any_done=False,
+            )
+
+            eval_time = time.time() - eval_start
+            eval_reward = eval_rollout["next", "reward"].mean().item()
+            eval_episode_end = eval_rollout["next", "done"]
+            eval_episode_rewards = eval_rollout["next", "episode_reward"][eval_episode_end]
+            eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
+            # if "success" in tensordict["next"].keys():
+            eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
+            o_dist = self.model["policy"].get_dist(eval_rollout)    
+            
+            entropy = torch_dist.Normal(o_dist.loc, o_dist.scale).entropy().sum(-1).mean().item()
+
+            if self.target_actor is not None:
+                o_dist_base = self.target_actor.get_dist(eval_rollout)
+                log_prior = o_dist_base.log_prob(eval_rollout['action'])
+                log_post = o_dist.log_prob(eval_rollout['action'])
+                kl = (log_post - log_prior).mean().item()
+            else:
+                kl = 0.0
+            eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
+            eval_metrics["eval/episode_success"] = eval_episode_success.float().mean().item()
+            eval_metrics["eval/episode_length"] = eval_episode_len
+            eval_metrics["eval/entropy"] = entropy
+            eval_metrics["eval/kl"] = kl
+            eval_metrics["eval/episode_reward"] = eval_episode_rewards.mean().item()
+            eval_metrics["eval/reward"] = eval_reward
+            eval_metrics["eval/full_reward"] = eval_rollout["next", "full_reward"].mean().item()
+            eval_metrics["eval/time"] = eval_time
+            eval_metrics["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
+        
+        if return_means:
+            return eval_metrics
+        else:
+            val_loss = self.loss_module(eval_rollout)
+            r_hat = self.compute_reward(eval_rollout["next", "reward_tensor"])
+            r = eval_rollout["next", "full_reward"]
+            return val_loss, r_hat, r, eval_metrics
 
     def save(self, path):
         torch.save(self.model.state_dict(), path)
