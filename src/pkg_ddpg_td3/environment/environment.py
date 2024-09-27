@@ -45,7 +45,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
     external_obs_component: Union[Component, None] = None
 
     def __init__(self, components: list[Component], generate_map: MapGenerator, time_step: float = 0.2,
-                 use_wandb: bool = False, reward_mode: Optional[str] = None, k0: float = 0.001, kc: float = 0.95, config: Optional[dict] = None):
+                 use_wandb: bool = False, config: Optional[dict] = None):
         """
         :param components: The components which this environemnt should use.
         :param generate_map: Map generation function. 
@@ -212,7 +212,6 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.agent.step(action, self.time_step)
 
     def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
-
         self.step_obstacles()
         self.step_agent(action)
 
@@ -231,22 +230,36 @@ class TrajectoryPlannerEnvironment(gym.Env):
             "x": 'NormCrossTrackReward'
         }
 
-        rwd_order = self.config.sac.curriculum.base_reward_keys + self.config.sac.curriculum.constraint_reward_keys
-        reward_vec = torch.tensor([rwd_dict[reward_term_vocab[k]] for k in rwd_order], dtype=torch.float64)
-        full_reward = sum(rwd_dict.values())
+        base_keys = [reward_term_vocab[k] for k in self.config.sac.curriculum.base_reward_keys]
+        constraint_keys = [reward_term_vocab[k] for k in self.config.sac.curriculum.constraint_reward_keys]
+
+        base_reward = 0
+        full_reward = 0
+        for k, v in rwd_dict.items():
+            if k in base_keys:
+                base_reward += v
+
+            # full_reward += v
+
+        rwd_order = base_keys + constraint_keys
+        reward_vec = torch.tensor([rwd_dict[k] for k in rwd_order], dtype=torch.float32)
+
+
+        full_reward = sum(rwd_dict.values())#reward_vec.sum()
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/full_reward'] = full_reward
+            log_stats['rewards/base_reward'] = base_reward
             wandb.log(log_stats)
 
         terminated = self.update_termination()
         info = self.get_info(full_reward, reward_vec)
 
         if GYM_0_22_X:
-            return observation, full_reward, terminated, False, info
+            return observation, base_reward, terminated, False, info
         else:
-            return observation, full_reward, terminated, info
+            return observation, base_reward, terminated, info
 
     def render(self, mode:str="human", dqn_ref=None, actual_ref=None, original_ref=None, save=False, save_num:int=1) -> Union[None, NDArray[np.uint8]]:
         external = self.obsv.get("external")

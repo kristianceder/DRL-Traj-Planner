@@ -46,3 +46,10 @@ tqdm==4.64.1
 typing_extensions
 wandb==0.17.4
 zipp==3.10.0
+click
+requests
+platformdirs
+six
+psutil
+mpmath
+pydantic

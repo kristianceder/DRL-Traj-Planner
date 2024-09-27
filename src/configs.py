@@ -15,8 +15,8 @@ class CurriculumConfig(BaseModel):
     num_updates_after_update: int = steps_stage_1
 
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    base_reward_keys: List[str] = ["g", "d", "s"] # ["g", "d", "s"]
-    constraint_reward_keys: List[str] = ["x", "c", "a"] # ["x", "c", "a"]
+    base_reward_keys: List[str] = ["g", "d", "s"]
+    constraint_reward_keys: List[str] = ["x", "c", "a"]
 
 
 class RLConfig(BaseModel):
@@ -38,7 +38,7 @@ class RLConfig(BaseModel):
 
     # replay
     scratch_dir: None = None
-    prefetch: Optional[int] = None
+    prefetch: Optional[int] = 2
 
     # nets
     hidden_sizes: List[int] = [32, 32, 32]
@@ -127,13 +127,14 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
-    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum, curriculum_step, multiply
+    # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
+    reward_mode: Optional[str] = "sum"  # vals: sum, curriculum_step, €curriculum,  multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
     seed: int = 100  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "cpu"
+    device: str = "mps"
     use_vec_norm: bool = False
     n_envs: int = 1
 
@@ -141,9 +142,6 @@ class BaseConfig(BaseModel):
     w2: float = .15  # acceleration
     w3: float = .15  # goal distance
     w4: float = .15  # cross track
-
-    k0: float = 0.0
-    kc: float = 0.94
 
     algo: str = "sac"
 

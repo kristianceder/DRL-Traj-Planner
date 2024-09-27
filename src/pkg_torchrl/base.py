@@ -8,33 +8,63 @@ import torch
 import torch.nn as nn
 
 from tensordict import TensorDict
-from tensordict.nn import InteractionType, TensorDictModule
+from tensordict.nn import InteractionType, TensorDictModule, TensorDictSequential
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import MLP, ProbabilisticActor, ValueOperator
+from torchrl.modules import MLP, ProbabilisticActor, ValueOperator, ConvNet
 from torchrl.modules.distributions import TanhNormal
 import torch.distributions as torch_dist
 
 from .utils import get_activation, make_collector, make_replay_buffer, reset_actor, reset_critic
 
 
-def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True):
+class ActorSequential(nn.Module):
+    def __init__(self, feature, actor_mlp, actor_extractor):
+        super().__init__()
+        self.feature = feature
+        self.actor_mlp = actor_mlp
+        self.actor_extractor = actor_extractor
+
+    def forward(self, *data):
+        pixels, internal = data
+        embed = self.feature(pixels)
+        obs = torch.cat([embed, internal], dim=-1)
+        x = self.actor_mlp(obs)
+        loc, scale = self.actor_extractor(x)
+        return loc, scale, embed
+
+
+class CriticSequential(nn.Module):
+    def __init__(self, feature, critic_mlp):
+        super().__init__()
+        self.feature = feature
+        self.critic_mlp = critic_mlp
+
+    def forward(self, *data):
+        pixels, internal, action = data
+        embed = self.feature(pixels)
+        obs = torch.cat([embed, internal], dim=-1)
+        if action is not None:
+            obs = torch.cat([obs, action], dim=-1)
+        out = self.critic_mlp(obs)
+        return out
+
+
+def build_actor(encoder, img_mode, obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True):
     action_size = action_spec.shape[-1]
 
-    actor_net_kwargs = {
-        "in_features": obs_size,
-        "num_cells": config.hidden_sizes,
-        "out_features": 2 * action_size,
-        "activation_class": get_activation(config.activation),
-        "dropout": config.actor_dropout,
-    }
-
-    actor_net = MLP(**actor_net_kwargs)
+    actor_net = MLP(
+        # in_features = obs_size,
+        num_cells = config.hidden_sizes,
+        out_features = 2 * action_size,
+        activation_class = get_activation(config.activation),
+        dropout = config.actor_dropout,
+    )
 
     dist_class = TanhNormal
     dist_kwargs = {
-        "min": action_spec.space.low,
-        "max": action_spec.space.high,
+        "low": action_spec.space.low,
+        "high": action_spec.space.high,
         "tanh_loc": False,
     }
 
@@ -42,7 +72,10 @@ def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interac
         scale_mapping=f"biased_softplus_{config.default_policy_scale}",
         scale_lb=config.scale_lb,
     )
-    actor_net = nn.Sequential(actor_net, actor_extractor)
+    if img_mode:
+        actor_net = ActorSequential(encoder, actor_net, actor_extractor)
+    else:
+        actor_net = nn.Sequential(actor_net, actor_extractor)
 
     actor_module = TensorDictModule(
         actor_net,
@@ -50,6 +83,7 @@ def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interac
         out_keys=[
             "loc",
             "scale",
+            "embed"
         ],
     )
     actor = ProbabilisticActor(
@@ -65,19 +99,20 @@ def build_actor(obs_size, action_spec, in_keys_actor, config, use_random_interac
     return actor
 
 
-def build_critic(obs_size, action_size, in_keys_value, config):
+def build_critic(encoder, img_mode, obs_size, action_size, in_keys_value, config):
     # Define Critic Network
-    qvalue_net_kwargs = {
-        "in_features": (obs_size + action_size) if 'action' in in_keys_value else obs_size,
-        "num_cells": config.hidden_sizes,
-        "out_features": 1,
-        "activation_class": get_activation(config.activation),
-        "dropout": config.critic_dropout,
-    }
-
-    qvalue_net = MLP(
-        **qvalue_net_kwargs,
+    qvalue_mlp = MLP(
+        # in_features = (obs_size + action_size) if 'action' in in_keys_value else obs_size,
+        num_cells = config.hidden_sizes,
+        out_features = 1,
+        activation_class = get_activation(config.activation),
+        dropout = config.critic_dropout,
     )
+
+    if img_mode:
+        qvalue_net = CriticSequential(encoder, qvalue_mlp)
+    else:
+        qvalue_net = qvalue_mlp
 
     qvalue = ValueOperator(
         in_keys=in_keys_value,
@@ -117,6 +152,8 @@ class AlgoBase(ABC):
             self.w[:self.len_base_rewards] = 1.
         else:
             self.w = torch.ones(n_rewards)
+
+        self.w.to(self.device)
 
         self.kl_loss_module = nn.KLDivLoss(reduction="batchmean", log_target=True)
 
@@ -185,15 +222,46 @@ class AlgoBase(ABC):
     def _init_policy(self):
         # Define Actor Network
         action_spec = self.train_env.action_spec
-        obs_size = 0
-        for key in self.in_keys_actor:
-            obs_size += self.train_env.observation_spec[key].shape[-1]
-        action_size = action_spec.shape[-1]
-        if self.train_env.batch_size:
-            action_spec = action_spec[(0,) * len(self.train_env.batch_size)]
+        obs_size = None
+        action_size = None
 
-        actor = build_actor(obs_size, action_spec, self.in_keys_actor, self.config)
-        qvalue = build_critic(obs_size, action_size, self.in_keys_value, self.config)
+
+        img_mode = "pixels" in self.train_env.observation_spec.keys()
+    
+        if img_mode:
+            # TODO should have separate encoder for value and policy for off-policy algos
+            # CNN from DQN Nature paper:
+            #     Mnih, Volodymyr, et al.
+            #     "Human-level control through deep reinforcement learning."
+            #     Nature 518.7540 (2015): 529-533.
+            # Addition is adaptive pooling
+            encoder_actor = ConvNet(
+                    num_cells = [32, 64, 64],
+                    kernel_sizes = [8, 4, 3],
+                    strides = [4, 2, 1],
+                    activation_class = nn.ReLU,#nn.ELU,
+                    squeeze_output=True,
+                    aggregator_class=nn.AdaptiveAvgPool2d,
+                    aggregator_kwargs={"output_size": (1, 1)},
+                    device=self.config.device,
+                )
+            encoder_critic = ConvNet(
+                    num_cells = [32, 64, 64],
+                    kernel_sizes = [8, 4, 3],
+                    strides = [4, 2, 1],
+                    activation_class = nn.ReLU,#nn.ELU,
+                    squeeze_output=True,
+                    aggregator_class=nn.AdaptiveAvgPool2d,
+                    aggregator_kwargs={"output_size": (1, 1)},
+                    device=self.config.device,
+                )
+        else:
+            # empty network that just passed through the input
+            encoder_actor = nn.Identity()
+            encoder_critic = nn.Identity()
+
+        actor = build_actor(encoder_actor, img_mode, obs_size, action_spec, self.in_keys_actor, self.config)
+        qvalue = build_critic(encoder_critic, img_mode, obs_size, action_size, self.in_keys_value, self.config)
 
         self.model = nn.ModuleDict({
             "policy": actor,
@@ -204,7 +272,8 @@ class AlgoBase(ABC):
         with torch.no_grad(), set_exploration_type(ExplorationType.RANDOM):
             td = self.train_env.reset()
             td = td.to(self.device)
-            for net in self.model.values():
+            for k, net in self.model.items():
+                print(k)
                 net(td)
         del td
         self.train_env.close()
@@ -242,7 +311,7 @@ class AlgoBase(ABC):
                 self.replay_buffer.empty()
                 print("Emptied replay buffer")
             print(f"Curriculum stage: {1}")
-            self.w = torch.ones_like(self.w)
+            self.w = torch.ones_like(self.w).to(self.device)
             self.curriculum_stage = 1
             self.updated_curriculum = True
             self.target_actor = copy.deepcopy(self.model.policy)
@@ -281,11 +350,17 @@ class AlgoBase(ABC):
         if not isinstance(new_w, torch.Tensor):
             new_w = torch.tensor(new_w)
         assert new_w.shape == self.w.shape, f"new_w shape {new_w.shape} != w shape {self.w.shape}"
-        self.w = new_w
+        self.w = new_w.to(self.device)
 
     def compute_reward(self, reward_tensor):
         # computing the reward solely depends on self.w
         assert self.w.shape[-1] == reward_tensor.shape[-1]
+        if not self.w.device == self.device:
+            # print("Moving w to device")
+            self.w = self.w.to(self.device)
+        if not reward_tensor.device == self.device:
+            # print("Moving reward_tensor to device")
+            reward_tensor = reward_tensor.to(self.device)
 
         rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
         return rewards
@@ -365,7 +440,7 @@ class AlgoBase(ABC):
 
                     if sampled_tensordict.device != self.device:
                         sampled_tensordict = sampled_tensordict.to(
-                            self.device, non_blocking=True
+                            self.device#, non_blocking=True
                         )
                     else:
                         sampled_tensordict = sampled_tensordict.clone()
@@ -373,10 +448,10 @@ class AlgoBase(ABC):
                     # compute the reward during training as it depends on w which changes
                     # this way we can keep the whole replay buffer when changing reward weights
 
-                    sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    # sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
                     # new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
-                    # if self.curriculum_stage > 0:
-                    #     og_reward = sampled_tensordict["next", "full_reward"]
+                    if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
+                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
                     # else:
                     #     og_reward = sampled_tensordict["next", "reward"]
 
@@ -476,7 +551,7 @@ class AlgoBase(ABC):
     
     def evaluate(self, eval_rollout_steps, return_means=True):
         eval_metrics = {}
-        with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+        with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
             eval_start = time.time()
             eval_rollout = self.eval_env.rollout(
                 eval_rollout_steps,

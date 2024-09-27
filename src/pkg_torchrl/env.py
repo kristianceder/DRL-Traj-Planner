@@ -8,6 +8,8 @@ from torchrl.envs import (
     DoubleToFloat,
     TransformedEnv,
     ParallelEnv,
+    ToTensorImage,
+    ObservationNorm,
 )
 from torchrl.envs.transforms import (
     InitTracker,
@@ -24,25 +26,34 @@ def make_env(config, **kwargs):
                      w2=config.w2,
                      w3=config.w3,
                      w4=config.w4,
-                     reward_mode=config.reward_mode,
                      config=config,
-                     k0=config.k0,
-                     kc=config.kc,
                      device=config.device,
                      **kwargs)
 
     def make_t_env():
-        transform_list = [
-            InitTracker(),
-            StepCounter(config.sac.max_eps_steps),
-            DoubleToFloat(),
-            RewardSum(),
-            CatTensors(in_keys=['internal', 'external'], out_key="observation"),
-        ]
+        if "Img" in config.env_name:
+            transform_list = [
+                ToTensorImage(in_keys=["external"], out_keys=["pixels"], shape_tolerant=True),
+                InitTracker(),
+                StepCounter(config.sac.max_eps_steps),
+                DoubleToFloat(),
+                RewardSum(),
+                ObservationNorm(standard_normal=True, in_keys=["pixels"]),
+            ]
+        else:
+            transform_list = [
+                InitTracker(),
+                StepCounter(config.sac.max_eps_steps),
+                DoubleToFloat(),
+                RewardSum(),
+                CatTensors(in_keys=['internal', 'external'], out_key="observation"),
+            ]
 
         if config.use_vec_norm:
             transform_list += [VecNorm(decay=0.9),]
         t_env = TransformedEnv(raw_env, Compose(*transform_list))
+        if "Img" in config.env_name:
+            t_env.transform[-1].init_stats(1000, cat_dim=0, reduce_dim=[-1, -2, -4], keep_dims=(-1, -2))
         reader = default_info_dict_reader(["success", "collided", "full_reward", "reward_tensor"])
         t_env.set_info_dict_reader(info_dict_reader=reader)
         return t_env

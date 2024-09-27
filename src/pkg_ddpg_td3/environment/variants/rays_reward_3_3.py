@@ -26,7 +26,6 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
         w3: float = 1/4,
         w4: float = 1/4,
         config: Optional[dict] = None,
-        reward_mode: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(
@@ -48,6 +47,5 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
             generate_map,
             time_step,
             config=config,
-            reward_mode=reward_mode,  # TODO remove
             **kwargs,
         )

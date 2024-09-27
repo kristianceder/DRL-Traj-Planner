@@ -66,9 +66,9 @@ def run():
     else:
         print(f'Could not find map key {map_key}')
 
-    train_env = make_env(config, generate_map=generate_map, use_wandb=True)
+    train_env = make_env(config, generate_map=generate_map)#, use_wandb=True)
     eval_env = make_env(config, generate_map=generate_map)
-    env_maker = lambda: make_env(config, generate_map=generate_map)
+    # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
