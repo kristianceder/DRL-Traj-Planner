@@ -28,6 +28,11 @@ register(
     max_episode_steps=max_episode_steps,
 )
 register(
+    id='TrajectoryPlannerEnvironmentImgsReward3-v0',
+    entry_point='pkg_ddpg_td3.environment.variants.imgs_reward3:TrajectoryPlannerEnvironmentImgsReward3',
+    max_episode_steps=max_episode_steps,
+)
+register(
     id='TrajectoryPlannerEnvironmentRaysReward1-v0',
     entry_point='pkg_ddpg_td3.environment.variants.rays_reward1:TrajectoryPlannerEnvironmentRaysReward1',
     max_episode_steps=max_episode_steps,
