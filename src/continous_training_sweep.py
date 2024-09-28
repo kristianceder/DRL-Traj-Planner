@@ -67,7 +67,8 @@ def run():
 
     algo_config = getattr(config, config.algo.lower())
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
-    models_path = Path('../Model/testing')
+    file_dir = Path(__file__).resolve().parents[1]
+    models_path = file_dir / 'Model' / 'testing'
 
     timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
     path = models_path / f"{timestamp}_{config.algo.upper()}"
