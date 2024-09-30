@@ -572,6 +572,7 @@ class AlgoBase(ABC):
         return metrics_to_log
     
     def evaluate(self, eval_rollout_steps, return_means=True):
+        # TODO record video of evaluation
         eval_metrics = {}
         with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
             eval_start = time.time()
@@ -589,17 +590,21 @@ class AlgoBase(ABC):
             eval_episode_lengths = eval_rollout["next", "step_count"][eval_episode_end]
             # if "success" in tensordict["next"].keys():
             eval_episode_len = eval_episode_lengths.sum().item() / len(eval_episode_lengths)
-            o_dist = self.model["policy"].get_dist(eval_rollout)    
-            
-            entropy = torch_dist.Normal(o_dist.loc, o_dist.scale).entropy().sum(-1).mean().item()
 
-            if self.target_actor is not None:
-                o_dist_base = self.target_actor.get_dist(eval_rollout)
-                log_prior = o_dist_base.log_prob(eval_rollout['action'])
-                log_post = o_dist.log_prob(eval_rollout['action'])
-                kl = (log_post - log_prior).mean().item()
-            else:
-                kl = 0.0
+            entropy = 0.0
+            kl = 0.0
+            if not self.deterministic:
+                o_dist = self.model["policy"].get_dist(eval_rollout)    
+                entropy = torch_dist.Normal(o_dist.loc, o_dist.scale).entropy().sum(-1).mean().item()
+
+                if self.target_actor is not None:
+                    o_dist_base = self.target_actor.get_dist(eval_rollout)
+                    log_prior = o_dist_base.log_prob(eval_rollout['action'])
+                    log_post = o_dist.log_prob(eval_rollout['action'])
+                    kl = (log_post - log_prior).mean().item()
+                else:
+                    kl = 0.0
+
             eval_episode_success = eval_rollout["next", "success"][eval_episode_end]
             eval_metrics["eval/episode_success"] = eval_episode_success.float().mean().item()
             eval_metrics["eval/episode_length"] = eval_episode_len
