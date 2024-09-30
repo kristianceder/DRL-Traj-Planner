@@ -144,8 +144,9 @@ class AlgoBase(ABC):
         self._init_optimizer()
         self._post_init_optimizer()
 
-        self.len_constraint_rewards = len(config.curriculum.constraint_reward_keys)
         self.len_base_rewards = len(config.curriculum.base_reward_keys)
+        self.len_constraint_rewards = len(config.curriculum.all_reward_keys) - self.len_base_rewards
+
         n_rewards = self.len_base_rewards + self.len_constraint_rewards
         if 'curriculum' in self.config.reward_mode:
             self.w = torch.zeros(n_rewards)

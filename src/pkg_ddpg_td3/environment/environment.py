@@ -57,7 +57,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.render_cnt = 0
         self.render_mode = "rgb_array"
         self.config = config
-        self.reward_length = len(self.config.sac.curriculum.base_reward_keys) + len(self.config.sac.curriculum.constraint_reward_keys)
+        self.reward_length = len(self.config.sac.curriculum.all_reward_keys)
 
         for component in self.components:
             component.env = self
@@ -148,10 +148,11 @@ class TrajectoryPlannerEnvironment(gym.Env):
         self.path = LineString(path)
         return len(path) > 0
 
-    def get_info(self, reward: float = 0., reward_vec: Optional[torch.Tensor] = None) -> dict:
+    def get_info(self, reward: float = 0., base_reward: float = 0., reward_vec: Optional[torch.Tensor] = None) -> dict:
         return {"success": torch.tensor(self.reached_goal).unsqueeze(0),
                 'collided': torch.tensor(self.collided).unsqueeze(0),
                 'full_reward': torch.tensor(reward, dtype=torch.float32).unsqueeze(0),
+                'base_reward': torch.tensor(base_reward, dtype=torch.float32).unsqueeze(0),
                 'reward_tensor': reward_vec if reward_vec is not None else torch.full((self.reward_length,), torch.nan)
                 }
 
@@ -230,8 +231,10 @@ class TrajectoryPlannerEnvironment(gym.Env):
             "x": 'NormCrossTrackReward'
         }
 
-        base_keys = [reward_term_vocab[k] for k in self.config.sac.curriculum.base_reward_keys]
-        constraint_keys = [reward_term_vocab[k] for k in self.config.sac.curriculum.constraint_reward_keys]
+        base_keys = [reward_term_vocab[k] for k in list(self.config.sac.curriculum.base_reward_keys)]
+        constraint_keys = [reward_term_vocab[k]
+                           for k in list(self.config.sac.curriculum.all_reward_keys)
+                           if k not in list(self.config.sac.curriculum.base_reward_keys)]
 
         base_reward = 0
         full_reward = 0
@@ -244,17 +247,17 @@ class TrajectoryPlannerEnvironment(gym.Env):
         rwd_order = base_keys + constraint_keys
         reward_vec = torch.tensor([rwd_dict[k] for k in rwd_order], dtype=torch.float32)
 
-
-        full_reward = sum(rwd_dict.values())#reward_vec.sum()
+        full_reward = reward_vec.sum() # sum(rwd_dict.values())
 
         if self.use_wandb:
+            # TODO how can I log this while ensuring that the step order is preserved?
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/full_reward'] = full_reward
             log_stats['rewards/base_reward'] = base_reward
             wandb.log(log_stats)
 
         terminated = self.update_termination()
-        info = self.get_info(full_reward, reward_vec)
+        info = self.get_info(full_reward, base_reward, reward_vec)
 
         if GYM_0_22_X:
             return observation, base_reward, terminated, False, info

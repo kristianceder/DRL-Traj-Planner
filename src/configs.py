@@ -15,9 +15,10 @@ class CurriculumConfig(BaseModel):
     num_updates_after_update: int = steps_stage_1
 
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    base_reward_keys: List[str] = ["g", "d", "s"]
-    constraint_reward_keys: List[str] = ["x", "c", "a"]
-
+    # base_reward_keys: List[str] = ["g", "d", "s"]
+    # constraint_reward_keys: List[str] = ["x", "c", "a"]
+    base_reward_keys: str = "gd" #"gds"
+    all_reward_keys: str = "gd" #"gdcsax"
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -28,7 +29,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 50_000
+    total_frames: int = 200_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -59,7 +60,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 100_000
+    replay_buffer_size: int = 200_000
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0
@@ -134,7 +135,7 @@ class BaseConfig(BaseModel):
     map_key: str = 'dynamic_convex_obstacle'
     seed: int = 100  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "mps"
+    device: str = "cuda"
     use_vec_norm: bool = False
     n_envs: int = 1
 
