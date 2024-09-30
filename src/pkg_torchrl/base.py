@@ -11,8 +11,8 @@ from tensordict import TensorDict
 from tensordict.nn import InteractionType, TensorDictModule, TensorDictSequential
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import MLP, ProbabilisticActor, ValueOperator, ConvNet
-from torchrl.modules.distributions import TanhNormal
+from torchrl.modules import MLP, ProbabilisticActor, ValueOperator, ConvNet, AdditiveGaussianModule
+from torchrl.modules.distributions import TanhNormal, TanhDelta
 import torch.distributions as torch_dist
 
 from .utils import get_activation, make_collector, make_replay_buffer, reset_actor, reset_critic
@@ -30,8 +30,11 @@ class ActorSequential(nn.Module):
         embed = self.feature(pixels)
         obs = torch.cat([embed, internal], dim=-1)
         x = self.actor_mlp(obs)
-        loc, scale = self.actor_extractor(x)
-        return loc, scale, embed
+        if self.actor_extractor is None:
+            return x, embed
+        else:
+            loc, scale = self.actor_extractor(x)
+            return loc, scale, embed
 
 
 class CriticSequential(nn.Module):
@@ -50,45 +53,47 @@ class CriticSequential(nn.Module):
         return out
 
 
-def build_actor(encoder, img_mode, obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True):
+def build_actor(encoder, img_mode, obs_size, action_spec, in_keys_actor, config, use_random_interaction: bool = True, deterministic: bool = False):
     action_size = action_spec.shape[-1]
 
     actor_net = MLP(
         # in_features = obs_size,
         num_cells = config.hidden_sizes,
-        out_features = 2 * action_size,
+        out_features = action_size if deterministic else 2 * action_size,
         activation_class = get_activation(config.activation),
         dropout = config.actor_dropout,
     )
 
-    dist_class = TanhNormal
     dist_kwargs = {
         "low": action_spec.space.low,
         "high": action_spec.space.high,
-        "tanh_loc": False,
     }
 
-    actor_extractor = NormalParamExtractor(
-        scale_mapping=f"biased_softplus_{config.default_policy_scale}",
-        scale_lb=config.scale_lb,
-    )
+    if deterministic:
+        actor_extractor = None
+        dist_class = TanhDelta
+    else:
+        dist_class = TanhNormal
+        dist_kwargs["tanh_loc"] = False
+        actor_extractor = NormalParamExtractor(
+            scale_mapping=f"biased_softplus_{config.default_policy_scale}",
+            scale_lb=config.scale_lb,
+        )
     if img_mode:
         actor_net = ActorSequential(encoder, actor_net, actor_extractor)
     else:
-        actor_net = nn.Sequential(actor_net, actor_extractor)
+        actor_net = nn.Sequential(actor_net, actor_extractor) if deterministic else actor_net
+
+    action_keys = ["loc", "scale"] if not deterministic else ["param"]
 
     actor_module = TensorDictModule(
         actor_net,
         in_keys=in_keys_actor,
-        out_keys=[
-            "loc",
-            "scale",
-            "embed"
-        ],
+        out_keys=action_keys + ["embed"],
     )
     actor = ProbabilisticActor(
         spec=action_spec,
-        in_keys=["loc", "scale"],
+        in_keys=action_keys,
         module=actor_module,
         distribution_class=dist_class,
         distribution_kwargs=dist_kwargs,
@@ -122,13 +127,14 @@ def build_critic(encoder, img_mode, obs_size, action_size, in_keys_value, config
 
 
 class AlgoBase(ABC):
-    def __init__(self, config, train_env, eval_env, in_keys_actor, in_keys_value):
+    def __init__(self, config, train_env, eval_env, in_keys_actor, in_keys_value, deterministic=False):
         self.config = config
         self.train_env = train_env
         self.eval_env = eval_env
         self.device = torch.device(config.device)
         self.in_keys_actor = in_keys_actor
         self.in_keys_value = in_keys_value
+        self.deterministic = deterministic
 
         self.target_actor = None
         self.advantage_module = None
@@ -261,7 +267,7 @@ class AlgoBase(ABC):
             encoder_actor = nn.Identity()
             encoder_critic = nn.Identity()
 
-        actor = build_actor(encoder_actor, img_mode, obs_size, action_spec, self.in_keys_actor, self.config)
+        actor = build_actor(encoder_actor, img_mode, obs_size, action_spec, self.in_keys_actor, self.config, deterministic=self.deterministic)
         qvalue = build_critic(encoder_critic, img_mode, obs_size, action_size, self.in_keys_value, self.config)
 
         self.model = nn.ModuleDict({
@@ -368,7 +374,22 @@ class AlgoBase(ABC):
 
     def train(self, use_wandb=True, env_maker=None):
         # Create off-policy collector
-        collector = make_collector(self.config, self.train_env, self.model["policy"],
+
+        if self.deterministic:
+            # TODO do want to add noise to TD3 as well?
+            collector_policy = TensorDictSequential(
+                    self.model["policy"],
+                    AdditiveGaussianModule(
+                        spec=self.model["policy"].spec,
+                        annealing_num_steps=self.config.total_frames// 2,  # Number of frames after which sigma is sigma_end
+                        sigma_init=self.config.sigma_init,  # Initial value of the sigma
+                        sigma_end=self.config.sigmn_end,  # Final value of the sigma
+                    ),
+                )
+        else:
+            collector_policy = self.model["policy"]
+
+        collector = make_collector(self.config, self.train_env, collector_policy,
                                    self.is_pretrained, env_maker=env_maker)
 
         # Main loop

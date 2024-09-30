@@ -26,6 +26,7 @@ from pkg_torchrl.env import make_env
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.ppo import PPO
 from pkg_torchrl.td3 import TD3
+from pkg_torchrl.ddpg import DDPG
 
 from configs import BaseConfig
 

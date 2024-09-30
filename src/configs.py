@@ -100,6 +100,13 @@ class TD3Config(RLConfig):
     noise_clip: float = 0.5
 
 
+class DDPGConfig(RLConfig):
+    actor_lr: float = 3.0e-4
+    critic_lr: float = 3.0e-4
+    target_update_polyak: float = 0.995
+    sigma_init: float = 0.9
+    sigmn_end: float = 0.1
+
 class PPOConfig(RLConfig):
     lr: float = 3.0e-4
     clip_epsilon: float = 0.2
@@ -144,28 +151,22 @@ class BaseConfig(BaseModel):
     w3: float = .15  # goal distance
     w4: float = .15  # cross track
 
-    algo: str = "sac"
+    algo: str = "ddpg"
 
     pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()
     ppo: PPOConfig = PPOConfig()
     td3: TD3Config = TD3Config()
+    ddpg: DDPGConfig = DDPGConfig()
 
     def __init__(self, **data):
         super().__init__(**data)
-        # TODO solve this more elegently
-        self.sac.seed = self.seed
-        self.sac.device = self.device
-        self.sac.collector_device = self.collector_device
-        self.sac.reward_mode = self.reward_mode
-        self.ppo.seed = self.seed
-        self.ppo.device = self.device
-        self.ppo.collector_device = self.collector_device
-        self.ppo.reward_mode = self.reward_mode
-        self.td3.seed = self.seed
-        self.td3.device = self.device
-        self.td3.collector_device = self.collector_device
-        self.td3.reward_mode = self.reward_mode
+        # Automatically propagate common attributes to all algorithm configurations
+        for algo_config in [self.sac, self.ppo, self.td3, self.ddpg]:
+            algo_config.seed = self.seed
+            algo_config.device = self.device
+            algo_config.collector_device = self.collector_device
+            algo_config.reward_mode = self.reward_mode
 
         if self.algo == "ppo":
             assert self.ppo.replay_buffer_size == self.ppo.frames_per_batch, \

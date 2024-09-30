@@ -8,12 +8,18 @@ from pkg_torchrl.base import AlgoBase
 class TD3(AlgoBase):
     """PPO actor critic trainer"""
     def __init__(self, config, train_env, eval_env):
+        if "pixels" in train_env.observation_spec.keys():
+            in_keys_actor = ["pixels", "internal"]
+            in_keys_value = ["pixels", "internal", "action"]
+        else:
+            in_keys_actor = ["observation"]
+            in_keys_value = ["observation", "action"]
         super().__init__(config, train_env, eval_env,
-                         in_keys_actor=['observation'],
-                         in_keys_value=['observation', 'action'])
+                         in_keys_actor=in_keys_actor,
+                         in_keys_value=in_keys_value,
+                         deterministic=True)
             
     def _init_loss_module(self):
-        # Create SAC loss
         self.loss_module = TD3Loss(
             actor_network=self.model["policy"],
             qvalue_network=self.model["value"],
