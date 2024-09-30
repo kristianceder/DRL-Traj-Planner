@@ -5,8 +5,8 @@ from typing import Optional, List
 class CurriculumConfig(BaseModel):
     # mode: str = "exponential"  # ["stages", "exponential"]
     steps_stage_1: int = 25_000  # 50_000  # add collision penalty
-    steps_stage_2: int = 2_000_000  # add speed penalty
-    steps_stage_3: int = 2_000_000  # add acceleration penalty
+    # steps_stage_2: int = 2_000_000  # add speed penalty
+    # steps_stage_3: int = 2_000_000  # add acceleration penalty
 
     reset_n_critic_layers: Optional[int] = None
     reset_n_actor_layers: Optional[int] = None
@@ -18,7 +18,7 @@ class CurriculumConfig(BaseModel):
     # base_reward_keys: List[str] = ["g", "d", "s"]
     # constraint_reward_keys: List[str] = ["x", "c", "a"]
     base_reward_keys: str = "gd" #"gds"
-    all_reward_keys: str = "gd" #"gdcsax"
+    all_reward_keys: str = "gdcsax" #"gdcsax"
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -107,6 +107,7 @@ class DDPGConfig(RLConfig):
     sigma_init: float = 0.9
     sigmn_end: float = 0.1
 
+
 class PPOConfig(RLConfig):
     lr: float = 3.0e-4
     clip_epsilon: float = 0.2
@@ -137,7 +138,7 @@ class BaseConfig(BaseModel):
     # env 1 is original observations, 3 is updated
     # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
     env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
-    reward_mode: Optional[str] = "sum"  # vals: sum, curriculum_step, €curriculum,  multiply
+    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step, €curriculum,  multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
     seed: int = 100  # 10, 100, 200

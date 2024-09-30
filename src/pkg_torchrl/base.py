@@ -361,7 +361,7 @@ class AlgoBase(ABC):
 
     def compute_reward(self, reward_tensor):
         # computing the reward solely depends on self.w
-        assert self.w.shape[-1] == reward_tensor.shape[-1]
+        assert self.w.shape[-1] == reward_tensor.shape[-1], f"w shape {self.w.shape} != reward_tensor shape {reward_tensor.shape}"
         if not self.w.device == self.device:
             # print("Moving w to device")
             self.w = self.w.to(self.device)
