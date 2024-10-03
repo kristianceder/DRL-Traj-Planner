@@ -1,0 +1,23 @@
+program: DRL-Traj-Planner/src/continous_training_sweep.py
+method: grid
+metric:
+  name: eval/episode_success
+  goal: maximize
+parameters:
+  algo:
+    values: ["sac"]
+  reward_mode:
+    # values: ["sum", "curriculum_step"]
+    value: "curriculum_step"
+  seed:
+    values: [10, 100, 200]  # 1235, 2621, 12, 52
+  sac:
+    parameters:
+      curriculum:
+        parameters:
+          base_reward_keys:
+            values: ["gds", "gdx", "gd",  "gda", "gdcsax"]
+          all_reward_keys:
+            value: "gdcsax"
+  # map_key:
+  #   values: ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']

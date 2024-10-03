@@ -322,6 +322,7 @@ class AlgoBase(ABC):
             self.curriculum_stage = 1
             self.updated_curriculum = True
             self.target_actor = copy.deepcopy(self.model.policy)
+            # TODO reset priority buffer
 
         return collected_frames
     

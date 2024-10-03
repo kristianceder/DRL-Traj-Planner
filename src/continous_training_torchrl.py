@@ -20,9 +20,12 @@ import numpy as np
 from pkg_ddpg_td3.utils.map import (
     generate_map_corridor,
     generate_map_dynamic_convex_obstacle,
+    generate_map_dynamic,
     generate_map_eval,
+    generate_map_mpc,
     generate_map_static_nonconvex_obstacle,
 )
+from pkg_ddpg_td3.environment import MapDescription
 from pkg_torchrl.env import make_env, render_rollout
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.ppo import PPO
@@ -50,6 +53,9 @@ def process_args():
     return parser.parse_args()
 
 
+def generate_map_train() -> MapDescription:
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
+
 def run():
     args = process_args()
     config = BaseConfig()
@@ -68,7 +74,7 @@ def run():
         print(f'Could not find map key {map_key}')
 
     train_env = make_env(config, generate_map=generate_map)#, use_wandb=True)
-    eval_env = make_env(config, generate_map=generate_map)
+    eval_env = make_env(config, generate_map=generate_map_train)#generate_map)
     # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())

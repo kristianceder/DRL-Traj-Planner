@@ -63,7 +63,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         reward_term_vocab = {
             "g": 'ReachGoalReward',
             "s": 'NormSpeedReward',
-            "d": 'NormGoalDistanceReward',
+            "d": 'PathProgressReward',#'NormGoalDistanceReward',
             "c": 'CollisionReward',
             "a": 'NormAccelerationReward',
             "x": 'NormCrossTrackReward',
@@ -249,7 +249,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         # FIXME
         # for k, v in rwd_dict.items():
         #     if k != "NormGoalDistanceReward":
-        #         rwd_dict[k] = v - .1
+        #         rwd_dict[k] = v - .15
 
         base_reward = sum([rwd_dict[k] for k in self.base_keys])
         # base_reward = rwd_dict['ReachGoalReward'] + rwd_dict['NormGoalDistanceReward'] + rwd_dict['NormAccelerationReward']

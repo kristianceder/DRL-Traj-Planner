@@ -17,8 +17,8 @@ class CurriculumConfig(BaseModel):
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
     # base_reward_keys: List[str] = ["g", "d", "s"]
     # constraint_reward_keys: List[str] = ["x", "c", "a"]
-    base_reward_keys: str = "gdcsaxo" #"gds"
-    all_reward_keys: str = "gdcsaxo" #"gdcsaxo"
+    base_reward_keys: str = "gds" #"gds"
+    all_reward_keys: str = "gdcsax" #"gdcsaxo"
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -29,7 +29,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 50_000
+    total_frames: int = 100_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -52,16 +52,16 @@ class RLConfig(BaseModel):
     collector_device: Optional[str] = None
 
     # optim
-    gamma: float = 1.#0.99
-    gamma_end: float = 1.#0.99
+    gamma: float = 0.99
+    gamma_end: float = 0.99
     weight_decay: float = 0.0
     adam_eps: float = 1.0e-8
     max_grad_norm: float = 1.0
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 200_000
-    prioritize: bool = False
+    replay_buffer_size: int = 100_000
+    prioritize: bool = True
     batch_size: int = 128
     utd_ratio: float = 1.0
 
@@ -147,13 +147,13 @@ class BaseConfig(BaseModel):
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    w1: float = .1 #.15  # speed
-    w2: float = .1 #.15  # acceleration
-    w3: float = .5 #.15  # goal distance
-    w4: float = .1 #.15  # cross track
-    w5: float = .1 #.15  # obstacle distance
+    w1: float = .15  # speed
+    w2: float = .15  # acceleration
+    w3: float = 1.0  # path progress goal distance
+    w4: float = .15  # cross track
+    w5: float = .15  # obstacle distance
 
-    algo: str = "sac"
+    algo: str = "sac"  # choices: ["sac", "ppo", "td3", "ddpg"]
 
     pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()
