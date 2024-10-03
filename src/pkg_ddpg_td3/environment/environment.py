@@ -247,9 +247,9 @@ class TrajectoryPlannerEnvironment(gym.Env):
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
         # FIXME
-        for k, v in rwd_dict.items():
-            if k != "NormGoalDistanceReward":
-                rwd_dict[k] = v - .1
+        # for k, v in rwd_dict.items():
+        #     if k != "NormGoalDistanceReward":
+        #         rwd_dict[k] = v - .1
 
         base_reward = sum([rwd_dict[k] for k in self.base_keys])
         # base_reward = rwd_dict['ReachGoalReward'] + rwd_dict['NormGoalDistanceReward'] + rwd_dict['NormAccelerationReward']
