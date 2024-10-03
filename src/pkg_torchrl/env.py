@@ -26,6 +26,7 @@ def make_env(config, **kwargs):
                      w2=config.w2,
                      w3=config.w3,
                      w4=config.w4,
+                     w5=config.w5,
                      config=config,
                      device=config.device,
                      **kwargs)
@@ -54,7 +55,7 @@ def make_env(config, **kwargs):
         t_env = TransformedEnv(raw_env, Compose(*transform_list))
         if "Img" in config.env_name:
             t_env.transform[-1].init_stats(1000, cat_dim=0, reduce_dim=[-1, -2, -4], keep_dims=(-1, -2))
-        reader = default_info_dict_reader(["success", "collided", "full_reward", "reward_tensor"])
+        reader = default_info_dict_reader(["success", "collided", "full_reward", "base_reward", "true_reward", "reward_tensor"])
         t_env.set_info_dict_reader(info_dict_reader=reader)
         return t_env
 

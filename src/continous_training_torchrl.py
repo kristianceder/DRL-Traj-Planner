@@ -27,6 +27,7 @@ from pkg_torchrl.env import make_env, render_rollout
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.ppo import PPO
 from pkg_torchrl.td3 import TD3
+from pkg_torchrl.ddpg import DDPG
 # from pkg_torchrl.utils import ConstWrapper
 
 from configs import BaseConfig

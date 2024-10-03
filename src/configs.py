@@ -17,8 +17,8 @@ class CurriculumConfig(BaseModel):
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
     # base_reward_keys: List[str] = ["g", "d", "s"]
     # constraint_reward_keys: List[str] = ["x", "c", "a"]
-    base_reward_keys: str = "gd" #"gds"
-    all_reward_keys: str = "gdcsax" #"gdcsax"
+    base_reward_keys: str = "gdcsaxo" #"gds"
+    all_reward_keys: str = "gdcsaxo" #"gdcsaxo"
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -29,7 +29,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 200_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -42,7 +42,7 @@ class RLConfig(BaseModel):
     prefetch: Optional[int] = 2
 
     # nets
-    hidden_sizes: List[int] = [32, 32, 32]
+    hidden_sizes: List[int] = [32, 32, 32] # TODO this should be [64, 64]
     activation: str = "tanh"  # choices: "relu", "tanh", "leaky_relu"
     actor_dropout: Optional[float] = None
     critic_dropout: Optional[float] = None
@@ -52,8 +52,8 @@ class RLConfig(BaseModel):
     collector_device: Optional[str] = None
 
     # optim
-    gamma: float = 0.99
-    gamma_end: float = 0.99
+    gamma: float = 1.#0.99
+    gamma_end: float = 1.#0.99
     weight_decay: float = 0.0
     adam_eps: float = 1.0e-8
     max_grad_norm: float = 1.0
@@ -136,23 +136,24 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
-    # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
+    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
     reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step, €curriculum,  multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = 'dynamic_convex_obstacle'
-    seed: int = 100  # 10, 100, 200
+    seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "cuda"
+    device: str = "cpu"#"cuda"
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    w1: float = .15  # speed
-    w2: float = .15  # acceleration
-    w3: float = .15  # goal distance
-    w4: float = .15  # cross track
+    w1: float = .1 #.15  # speed
+    w2: float = .1 #.15  # acceleration
+    w3: float = .5 #.15  # goal distance
+    w4: float = .1 #.15  # cross track
+    w5: float = .1 #.15  # obstacle distance
 
-    algo: str = "ddpg"
+    algo: str = "sac"
 
     pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()

@@ -31,6 +31,7 @@ class TrajectoryPlannerEnvironmentImgsReward3(TrajectoryPlannerEnvironment):
         w2: float = 1/4,
         w3: float = 1/4,
         w4: float = 1/4,
+        w5: float = 1/4,
         config: Optional[dict] = None,
         **kwargs,
     ):
@@ -47,6 +48,7 @@ class TrajectoryPlannerEnvironmentImgsReward3(TrajectoryPlannerEnvironment):
                 NormAccelerationReward(w2),
                 NormGoalDistanceReward(w3),
                 NormCrossTrackReward(w4),
+                NormObstacleDistanceReward(w5),
             ],
             generate_map,
             time_step,

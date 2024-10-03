@@ -22,7 +22,7 @@ from .acceleration_reward import AccelerationReward
 from .angular_acceleration_reward import AngularAccelerationReward
 from .jerk_reward import JerkReward
 from .angular_jerk_reward import AngularJerkReward
-from .obstacle_distance_reward import ObstacleDistanceReward
+from .obstacle_distance_reward import NormObstacleDistanceReward
 from .goal_position_observation import GoalPositionObservation
 from .robot_position_observation import RobotPositionObservation
 from .reward_collision_binary import BinaryCollisionReward
@@ -56,7 +56,7 @@ __all__ = [
     'AngularAccelerationReward',
     'JerkReward',
     'AngularJerkReward',
-    'ObstacleDistanceReward',
+    'NormObstacleDistanceReward',
     'GoalPositionObservation',
     'RobotPositionObservation',
     'BinaryCollisionReward',

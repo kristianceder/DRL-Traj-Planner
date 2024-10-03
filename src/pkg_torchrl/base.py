@@ -82,14 +82,14 @@ def build_actor(encoder, img_mode, obs_size, action_spec, in_keys_actor, config,
     if img_mode:
         actor_net = ActorSequential(encoder, actor_net, actor_extractor)
     else:
-        actor_net = nn.Sequential(actor_net, actor_extractor) if deterministic else actor_net
+        actor_net = actor_net if deterministic else nn.Sequential(actor_net, actor_extractor)
 
     action_keys = ["loc", "scale"] if not deterministic else ["param"]
-
+    actor_module_out_keys = action_keys + ["embed"] if img_mode else action_keys
     actor_module = TensorDictModule(
         actor_net,
         in_keys=in_keys_actor,
-        out_keys=action_keys + ["embed"],
+        out_keys=actor_module_out_keys,
     )
     actor = ProbabilisticActor(
         spec=action_spec,
@@ -474,7 +474,9 @@ class AlgoBase(ABC):
                     # new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
                     if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
                         sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
-                    # else:
+                    else:
+                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "base_reward"]
+
                     #     og_reward = sampled_tensordict["next", "reward"]
 
                     # sampled_tensordict["next", "reward"] = og_reward
@@ -505,6 +507,8 @@ class AlgoBase(ABC):
                     if self.target_net_updater is not None:
                         self.target_net_updater.step()
 
+                    # TODO log losses
+
                     # Update priority
                     if prioritize:
                         loss_key = "loss_critic" if "loss_critic" in loss else "loss_qvalue"
@@ -527,8 +531,16 @@ class AlgoBase(ABC):
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
-                metrics_to_log["train/reward"] = self.compute_reward(tensordict["next", "reward_tensor"]).mean().item() # this is a bit weird but should do the job
+                if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
+                    train_reward = tensordict["next", "full_reward"]
+                else:
+                    train_reward = tensordict["next", "base_reward"]
+
+                metrics_to_log["train/reward"] = train_reward.mean().item() # this is a bit weird but should do the job
                 metrics_to_log["train/full_reward"] = tensordict["next", "full_reward"].mean().item()
+                metrics_to_log["train/base_reward"] = tensordict["next", "base_reward"].mean().item()
+                metrics_to_log["train/true_reward"] = tensordict["next", "true_reward"].mean().item()
+                # TODO log all rewards in reward_vector
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
                 )
@@ -613,6 +625,8 @@ class AlgoBase(ABC):
             eval_metrics["eval/episode_reward"] = eval_episode_rewards.mean().item()
             eval_metrics["eval/reward"] = eval_reward
             eval_metrics["eval/full_reward"] = eval_rollout["next", "full_reward"].mean().item()
+            eval_metrics["eval/base_reward"] = eval_rollout["next", "base_reward"].mean().item()
+            eval_metrics["eval/true_reward"] = eval_rollout["next", "true_reward"].mean().item()
             eval_metrics["eval/time"] = eval_time
             eval_metrics["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
         

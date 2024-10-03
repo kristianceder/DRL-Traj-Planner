@@ -3,16 +3,16 @@ from shapely import Point, distance
 from . import Component
 
 
-class ObstacleDistanceReward(Component):
+class NormObstacleDistanceReward(Component):
     """
     Rewards penalizing the distance to obstacles
     """
-    def __init__(self, factor: float, min_val: float = -10.):
+    def __init__(self, factor: float, max_dist: float = 1.):
         self.factor = factor
-        self.min_val = min_val
+        self.max_dist = max_dist
 
     def step(self, action: int) -> float:
         min_dist = min([distance(self.env.agent.point, o.padded_polygon) for o in self.env.obstacles])
-
-        reward = max(self.factor * np.log(min_dist), self.min_val)
-        return reward
+        raw_rwd = -1 + 2 * (min_dist / self.max_dist)
+        reward = min(1, max(-1, raw_rwd))
+        return self.factor * reward
