@@ -3,10 +3,7 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    # mode: str = "exponential"  # ["stages", "exponential"]
-    steps_stage_1: int = 25_000  # 50_000  # add collision penalty
-    # steps_stage_2: int = 2_000_000  # add speed penalty
-    # steps_stage_3: int = 2_000_000  # add acceleration penalty
+    steps_stage_1: int = 50_000
 
     reset_n_critic_layers: Optional[int] = None
     reset_n_actor_layers: Optional[int] = None
@@ -15,8 +12,6 @@ class CurriculumConfig(BaseModel):
     num_updates_after_update: int = steps_stage_1
 
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    # base_reward_keys: List[str] = ["g", "d", "s"]
-    # constraint_reward_keys: List[str] = ["x", "c", "a"]
     base_reward_keys: str = "gds" #"gds"
     all_reward_keys: str = "gdcsax" #"gdcsaxo"
 
@@ -42,7 +37,7 @@ class RLConfig(BaseModel):
     prefetch: Optional[int] = 2
 
     # nets
-    hidden_sizes: List[int] = [32, 32, 32] # TODO this should be [64, 64]
+    hidden_sizes: List[int] = [32, 32, 32] # TODO this should be [64, 64] for images
     activation: str = "tanh"  # choices: "relu", "tanh", "leaky_relu"
     actor_dropout: Optional[float] = None
     critic_dropout: Optional[float] = None
@@ -140,7 +135,7 @@ class BaseConfig(BaseModel):
     # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
     reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step, €curriculum,  multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
-    map_key: str = 'dynamic_convex_obstacle'
+    map_key: str = "random" #'dynamic_convex_obstacle'
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"#"cuda"

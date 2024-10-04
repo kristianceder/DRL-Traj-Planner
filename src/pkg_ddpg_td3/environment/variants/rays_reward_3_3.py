@@ -1,4 +1,5 @@
 from typing import Optional
+
 from ..components import *
 from .. import MapGenerator, MobileRobot
 from ..environment import TrajectoryPlannerEnvironment
