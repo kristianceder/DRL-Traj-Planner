@@ -131,22 +131,22 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
-    # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
+    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
     reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step, €curriculum,  multiply
     # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
     map_key: str = "dynamic_convex_obstacle"
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "cuda"
+    device: str = "cpu"#"cuda"
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    w1: float = 0.05#.2  # speed
-    w2: float = 0.05#.1  # acceleration
-    w3: float = .5  # path progress goal distance
-    w4: float = 0.05#.1  # cross track
-    w5: float = .1  # obstacle distance
+    w1: float = 0.05  # speed
+    w2: float = 0.05  # acceleration
+    w3: float = .25   # path progress goal distance
+    w4: float = 0.05  # cross track
+    w5: float = 0.    # NOT USED obstacle distance
 
     algo: str = "sac"  # choices: ["sac", "ppo", "td3", "ddpg"]
 
