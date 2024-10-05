@@ -166,16 +166,18 @@ def generate_map_dynamic_convex_obstacle() -> MapDescription:
     boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
     obstacles = []
 
-    x = 10.
-    y = 5.
+
+    rand = random.uniform(0,5 )
+    x = 10. + rand
+    y = 5.  + rand
     w = 5.
     h = 5.
     x0 = x - w / 2
     y0 = y - h / 2
     obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
     
-    x = 20.
-    y = 15.
+    x = 20. + random.uniform(0,5 )
+    y = random.choice([15, 5])
     w = 4.
     h = 10.
     x0 = x - w / 2
@@ -192,6 +194,16 @@ def generate_map_dynamic_convex_obstacle() -> MapDescription:
     freq = random.uniform(0.1, 0.3)
     angle = math.pi
     obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
+
+
+    x = 30.
+    y = 4.
+    x2 = 22.
+    y2 = 11.
+    freq = 0.000000001
+    # freq = random.uniform(0.1, 0.3)
+    angle = -math.pi / 2# * (3 / 4)
+    obstacles.append(Obstacle.create_non_convex_u_shape((x,y), (x2,y2), freq, angle, use_random=False))
     
     goal = Goal((35, random.uniform(5, 15)))
 

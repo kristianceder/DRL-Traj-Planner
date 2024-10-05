@@ -44,7 +44,7 @@ class TrajectoryPlannerEnvironmentImgsReward3(TrajectoryPlannerEnvironment):
                 ImageObservation(image_width, image_height, image_scale_x, image_scale_y, image_down_sample, image_center_x, image_center_y, image_angle),
                 ReachGoalReward(reach_goal_reward_factor, default_val=0.),
                 CollisionReward(collision_reward_factor),
-                NormSpeedReward(w1, reference_speed, tau=0.95),
+                NormSpeedReward(w1, reference_speed, tau=0.942),
                 NormAccelerationReward(w2),
                 # NormGoalDistanceReward(w3),
                 PathProgressReward(w3),

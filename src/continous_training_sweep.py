@@ -36,18 +36,18 @@ from configs import BaseConfig
 logging.basicConfig(level=logging.INFO)
 
 
-# def get_map(map_key):
-#     if map_key == 'corridor':
-#         generate_map = generate_map_corridor
-#     elif map_key == 'dynamic_convex_obstacle':
-#         generate_map = generate_map_dynamic_convex_obstacle
-#     elif map_key == 'static_nonconvex_obstacle':
-#         generate_map = generate_map_static_nonconvex_obstacle
-#     else:
-#         logging.error(f'Could not find map key {map_key}')
-#     return generate_map
-def generate_map_train() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
+def get_map(map_key):
+    if map_key == 'corridor':
+        generate_map = generate_map_corridor
+    elif map_key == 'dynamic_convex_obstacle':
+        generate_map = generate_map_dynamic_convex_obstacle
+    elif map_key == 'static_nonconvex_obstacle':
+        generate_map = generate_map_static_nonconvex_obstacle
+    else:
+        logging.error(f'Could not find map key {map_key}')
+    return generate_map
+# def generate_map_train() -> MapDescription:
+#     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
 
 # class FixedMapGenerator:
 #     def __init__(self):
@@ -72,10 +72,10 @@ def run():
     torch.manual_seed(config.seed)
     torch.cuda.manual_seed_all(config.seed)
 
-    # generate_map = get_map(config.map_key)
+    generate_map = get_map(config.map_key)
 
-    train_env = make_env(config, generate_map=generate_map_train, use_wandb=True)
-    eval_env = make_env(config, generate_map=generate_map_eval)
+    train_env = make_env(config, generate_map=generate_map)#, use_wandb=True)
+    eval_env = make_env(config, generate_map=generate_map)
     # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())
@@ -87,7 +87,7 @@ def run():
     path = models_path / f"{timestamp}_{config.algo.upper()}"
     path.mkdir(exist_ok=True, parents=True)
     wandb.config["path"] = path
-    wandb.config["map"] = "random"#generate_map.__name__
+    wandb.config["map"] = generate_map.__name__
 
     model.train()
     model.save(f"{path}/final_model.pth")

@@ -6,7 +6,7 @@ class NormCrossTrackReward(Component):
     """
     Gives a reward proportional to -(path cross track error)²
     """
-    def __init__(self, factor: float, max_error: float = 10.):
+    def __init__(self, factor: float, max_error: float = 5.):
         self.factor = factor
         self.max_error = max_error
     

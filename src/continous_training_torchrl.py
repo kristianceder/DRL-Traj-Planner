@@ -36,12 +36,6 @@ from pkg_torchrl.ddpg import DDPG
 from configs import BaseConfig
 
 
-# TODO (kilian)
-# make speed of obstacles a parameter
-# increasing discount factor
-# n-step schedule
-
-
 def process_args():
     parser = argparse.ArgumentParser(
         prog='DRL-Traj-Planner',
@@ -54,7 +48,8 @@ def process_args():
 
 
 def generate_map_train() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_dynamic_convex_obstacle, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
+
 
 def run():
     args = process_args()
@@ -73,8 +68,8 @@ def run():
     else:
         print(f'Could not find map key {map_key}')
 
-    train_env = make_env(config, generate_map=generate_map)#, use_wandb=True)
-    eval_env = make_env(config, generate_map=generate_map_train)#generate_map)
+    train_env = make_env(config, generate_map=generate_map_train)#, use_wandb=True)
+    eval_env = make_env(config, generate_map=generate_map_dynamic_convex_obstacle)#generate_map)
     # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())

@@ -41,7 +41,7 @@ class TrajectoryPlannerEnvironmentRaysReward33(TrajectoryPlannerEnvironment):
                 SectorAndRayObservation(num_segments, use_memory=use_memory),
                 ReachGoalReward(reach_goal_reward_factor, default_val=0.),
                 CollisionReward(collision_factor),
-                NormSpeedReward(w1, reference_speed, tau=0.95),
+                NormSpeedReward(w1, reference_speed, tau=0.942),
                 NormAccelerationReward(w2),
                 # NormGoalDistanceReward(w3),
                 PathProgressReward(w3),

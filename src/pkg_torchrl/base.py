@@ -514,7 +514,7 @@ class AlgoBase(ABC):
                     if prioritize:
                         loss_key = "loss_critic" if "loss_critic" in loss else "loss_qvalue"
                         sampled_tensordict.set(
-                            loss_key, loss[loss_key] * torch.ones(sampled_tensordict.shape))
+                            loss_key, loss[loss_key] * torch.ones(sampled_tensordict.shape, device=self.device))
                         self.replay_buffer.update_tensordict_priority(sampled_tensordict)
 
             training_time = time.time() - training_start

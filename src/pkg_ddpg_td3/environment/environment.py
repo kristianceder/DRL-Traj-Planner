@@ -70,7 +70,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
             "o": 'NormObstacleDistanceReward',
         }
         self.true_reward_keys = ['ReachGoalReward', 'NormSpeedReward', 'CollisionReward',
-                                 'NormAccelerationReward', 'NormCrossTrackReward', 'NormObstacleDistanceReward']
+                                 'NormAccelerationReward', 'NormCrossTrackReward']
 
         self.base_keys = [reward_term_vocab[k] for k in list(self.config.sac.curriculum.base_reward_keys)]
         self.constraint_keys = [reward_term_vocab[k]
@@ -248,17 +248,24 @@ class TrajectoryPlannerEnvironment(gym.Env):
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
         # FIXME
         # for k, v in rwd_dict.items():
-        #     if k != "NormGoalDistanceReward":
-        #         rwd_dict[k] = v - .15
+        #     if k == "NormAccelerationReward":
+        #         rwd_dict[k] = v - .2
+        #     if k == "NormCrossTrackReward":
+        #         rwd_dict[k] = v - .2
+
 
         base_reward = sum([rwd_dict[k] for k in self.base_keys])
-        # base_reward = rwd_dict['ReachGoalReward'] + rwd_dict['NormGoalDistanceReward'] + rwd_dict['NormAccelerationReward']
 
         # rwd_order = self.base_keys + self.constraint_keys
         all_rewards = [rwd_dict[k] for k in self.constraint_keys]
         # reward_vec = torch.tensor(all_rewards, dtype=torch.float32)
         full_reward = sum(all_rewards)
+
+        
         true_reward = sum([rwd_dict[k] for k in self.true_reward_keys])
+
+        # print(self.path_progress)
+        # print(f"True {true_reward:.2f}, Base {base_reward:.2f}, Full {full_reward:.2f} acc {rwd_dict['NormAccelerationReward']:.2f}, cross {rwd_dict['NormCrossTrackReward']:.2f}, speed {rwd_dict['NormSpeedReward']:.2f}, path {rwd_dict['PathProgressReward']:.2f}")
 
         if self.use_wandb:
             # TODO how can I log this while ensuring that the step order is preserved?
