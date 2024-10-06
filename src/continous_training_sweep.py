@@ -36,6 +36,10 @@ from configs import BaseConfig
 logging.basicConfig(level=logging.INFO)
 
 
+def generate_map_random() -> MapDescription:
+    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_dynamic_convex_obstacle, generate_map_mpc()])()
+
+
 def get_map(map_key):
     if map_key == 'corridor':
         generate_map = generate_map_corridor
@@ -43,11 +47,11 @@ def get_map(map_key):
         generate_map = generate_map_dynamic_convex_obstacle
     elif map_key == 'static_nonconvex_obstacle':
         generate_map = generate_map_static_nonconvex_obstacle
+    elif map_key == 'random':
+        generate_map = generate_map_random
     else:
         logging.error(f'Could not find map key {map_key}')
     return generate_map
-# def generate_map_train() -> MapDescription:
-#     return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_static_nonconvex_obstacle, generate_map_mpc()])()
 
 # class FixedMapGenerator:
 #     def __init__(self):
@@ -75,7 +79,11 @@ def run():
     generate_map = get_map(config.map_key)
 
     train_env = make_env(config, generate_map=generate_map)#, use_wandb=True)
-    eval_env = make_env(config, generate_map=generate_map)
+
+    if config.map_key == 'random':
+        eval_env = make_env(config, max_eps_steps=1000, generate_map=generate_map_eval)
+    else:
+        eval_env = make_env(config, generate_map=generate_map)
     # env_maker = lambda: make_env(config, generate_map=generate_map)
 
     algo_config = getattr(config, config.algo.lower())

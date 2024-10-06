@@ -20,7 +20,10 @@ from torchrl.envs.transforms import (
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 
 
-def make_env(config, **kwargs):
+def make_env(config, max_eps_steps=None, **kwargs):
+    if max_eps_steps is None:
+        max_eps_steps = config.sac.max_eps_steps
+
     raw_env = GymEnv(config.env_name,
                      w1=config.w1,
                      w2=config.w2,
@@ -36,7 +39,7 @@ def make_env(config, **kwargs):
             transform_list = [
                 ToTensorImage(in_keys=["external"], out_keys=["pixels"], shape_tolerant=True),
                 InitTracker(),
-                StepCounter(config.sac.max_eps_steps),
+                StepCounter(max_eps_steps),
                 DoubleToFloat(),
                 RewardSum(),
                 ObservationNorm(standard_normal=True, in_keys=["pixels"]),
@@ -44,7 +47,7 @@ def make_env(config, **kwargs):
         else:
             transform_list = [
                 InitTracker(),
-                StepCounter(config.sac.max_eps_steps),
+                StepCounter(max_eps_steps),
                 DoubleToFloat(),
                 RewardSum(),
                 CatTensors(in_keys=['internal', 'external'], out_key="observation"),

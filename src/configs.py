@@ -3,7 +3,7 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    steps_stage_1: int = 500_000
+    steps_stage_1: int = 200_000
 
     reset_n_critic_layers: Optional[int] = None
     reset_n_actor_layers: Optional[int] = None
@@ -12,8 +12,9 @@ class CurriculumConfig(BaseModel):
     num_updates_after_update: int = 25_000
 
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    base_reward_keys: str = "gd" #"gds"
+    base_reward_keys: str = "gds" #"gds"
     all_reward_keys: str = "gdcsax" #"gdcsax"
+
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
@@ -24,7 +25,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 200_000
+    total_frames: int = 1_000_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -55,7 +56,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 500_000
+    replay_buffer_size: int = 1_000_000
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0
@@ -65,7 +66,7 @@ class RLConfig(BaseModel):
     n_reset_layers_critic: Optional[int] = None
 
     # eval
-    eval_iter: int = 200_000
+    eval_iter: int = 100_000
     eval_rollout_steps: int = 5_000
 
     # lr schedule
@@ -93,6 +94,8 @@ class TD3Config(RLConfig):
     target_update_polyak: float = 0.995
     policy_noise: float = 0.2
     noise_clip: float = 0.5
+    sigma_init: float = 0.9
+    sigmn_end: float = 0.1
 
 
 class DDPGConfig(RLConfig):
@@ -131,21 +134,20 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
-    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
-    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step, €curriculum,  multiply
-    # map_key choices = ['dynamic_convex_obstacle', 'static_nonconvex_obstacle', 'corridor']
-    map_key: str = "dynamic_convex_obstacle"
+    # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
+    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step
+    map_key: str = "dynamic_convex_obstacle" # "random"
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "cpu"#"cuda"
+    device: str = "cuda"
     use_vec_norm: bool = False
     n_envs: int = 1
 
-    w1: float = 0.05  # speed
-    w2: float = 0.05  # acceleration
+    w1: float = 0.1  # speed
+    w2: float = 0.1  # acceleration
     w3: float = .25   # path progress goal distance
-    w4: float = 0.05  # cross track
+    w4: float = 0.1  # cross track
     w5: float = 0.    # NOT USED obstacle distance
 
     algo: str = "sac"  # choices: ["sac", "ppo", "td3", "ddpg"]

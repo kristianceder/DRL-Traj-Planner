@@ -5,28 +5,18 @@ metric:
   goal: maximize
 parameters:
   algo:
-    value: "sac"
-  map_key:
-    value: "random"
+    value: "td3"
   reward_mode:
     value: "curriculum_step"
   env_name:
     value: "TrajectoryPlannerEnvironmentImgsReward3-v0"
   seed:
     values: [1235, 2621, 12, 52]
-  sac:
+  td3:
     parameters:
-      total_frames:
-        value: 1000000
-      replay_buffer_size:
-        value: 1000000
       curriculum:
         parameters:
-          steps_stage_1:
-            values: [200000, 350000, 500000]
           base_reward_keys:
-            values: ["gds", "gdcsax"]
+            values: ["gd", "gds", "gdx", "gda", "gdc", "gdcsax"]
           all_reward_keys:
             value: "gdcsax"
-          num_updates_after_update:
-            value: 25000
