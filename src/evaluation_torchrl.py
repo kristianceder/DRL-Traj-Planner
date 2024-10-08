@@ -33,6 +33,8 @@ from pkg_ddpg_td3.utils.map import test_scene_1_dict, test_scene_2_dict
 from timer import PieceTimer, LoopTimer
 from typing import List, Tuple
 
+from pkg_ddpg_td3.utils.map import generate_map_corridor
+
 from configs import BaseConfig
 
 MAX_RUN_STEP = 200
@@ -76,12 +78,14 @@ def load_rl_model_env(generate_map, index: int) -> Tuple[SAC, SAC, TrajectoryPla
     model_path_cr = models_folder / "cr_1" / "final_model.pth"
     
     # env_eval:TrajectoryPlannerEnvironment = gym.make(config.env_name, generate_map=generate_map)
-    env_eval = make_env(config, generate_map=generate_map)
+    env_eval = make_env(config, generate_map=generate_map_corridor)
     # env_checker.check_env(env_eval)
     # td3_model = TD3.load(model_path_td3)
     # ddpg_model = PerDDPG.load(model_path_ddpg)
-    base_model = SAC.load(model_path_base)
-    cr_model = SAC.load(model_path_cr)
+    base_model = SAC(config.sac, env_eval, env_eval)
+    base_model.load(model_path_base)
+    cr_model = SAC(config.sac, env_eval, env_eval)
+    cr_model.load(model_path_cr)
 
     ddpg_model, td3_model = base_model, cr_model
 
@@ -116,7 +120,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
         decision_mode: 0 for pure rl, 1 for pure mpc, 2 for hybrid
     """
     if verbose:
-        prt_decision_mode = {0: 'pure_rl', 1: 'pure_mpc', 2: 'hybrid'}
+        prt_decision_mode = {0: 'pure_mpc', 1: 'base', 2: 'cr', 3: 'hybrid base', 4: 'hybrid cr'}
         print(f"The decision mode is: {prt_decision_mode[decision_mode]}")
 
     time_list = []
@@ -126,7 +130,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     CONFIG_FN = 'mpc_longiter.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
     traj_gen = load_mpc(cfg_fpath, verbose=verbose)
-    geo_map = get_geometric_map(env_eval.get_map_description(), inflate_margin=0.7)
+    geo_map = get_geometric_map(env_eval.unwrapped.get_map_description(), inflate_margin=0.7)
     traj_gen.update_static_constraints(geo_map.processed_obstacle_list) # assuming static obstacles not changed
 
     done = False
@@ -134,9 +138,9 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
         while not done:
             state = env_eval.reset()
 
-            init_state = np.array([*env_eval.agent.position, env_eval.agent.angle])
-            goal_state = np.array([*env_eval.goal.position, 0])
-            ref_path = list(env_eval.path.coords)
+            init_state = np.array([*env_eval.unwrapped.agent.position, env_eval.unwrapped.agent.angle])
+            goal_state = np.array([*env_eval.unwrapped.goal.position, 0])
+            ref_path = list(env_eval.unwrapped.path.coords)
             traj_gen.initialization(init_state, goal_state, ref_path)
 
             last_mpc_time = 0.0
@@ -152,7 +156,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
 
                 print(f"\r{decision_mode}, {i+1}/{MAX_RUN_STEP}", end="  ")
 
-                dyn_obstacle_list = [obs.keyframe.position.tolist() for obs in env_eval.obstacles if not obs.is_static]
+                dyn_obstacle_list = [obs.keyframe.position.tolist() for obs in env_eval.unwrapped.obstacles if not obs.is_static]
                 dyn_obstacle_tmp  = [obs+[DYN_OBS_SIZE, DYN_OBS_SIZE, 0, 1] for obs in dyn_obstacle_list]
                 dyn_obstacle_list_poly = [circle_to_rect(obs) for obs in dyn_obstacle_list]
                 dyn_obstacle_pred_list = []
@@ -163,7 +167,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                 last_dyn_obstacle_list = dyn_obstacle_list
 
                 if decision_mode == 0:
-                    env_eval.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
+                    env_eval.unwrapped.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
                                                 traj_gen.last_action[0], traj_gen.last_action[1])
                     rand_action = env_eval.rand_action(state)
                     next_state = env_eval.step(rand_action) # just for plotting and updating status
@@ -185,7 +189,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     action, pred_states, cost = mpc_output
 
                 elif decision_mode == 1:
-                    traj_gen.set_current_state(env_eval.agent.state)
+                    traj_gen.set_current_state(env_eval.unwrapped.agent.state)
                     original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
@@ -194,7 +198,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     next_state = env_eval.step(td_action)
 
                 elif decision_mode == 2:
-                    traj_gen.set_current_state(env_eval.agent.state)
+                    traj_gen.set_current_state(env_eval.unwrapped.agent.state)
                     original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
@@ -203,7 +207,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     next_state = env_eval.step(td_action)
 
                 elif decision_mode == 3:
-                    env_eval.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
+                    env_eval.unwrapped.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
                                              traj_gen.last_action[0], traj_gen.last_action[1])
                     timer_rl = PieceTimer()
                     td_action = ddpg_model.predict(state, deterministic=True)
@@ -214,10 +218,10 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     # done = env_eval.update_termination()
                     # info = env_eval.get_info()
                     next_state = env_eval.step(td_action)
-                    action_index = td_action['action'].numpy()
+                    action_index = td_action['action'].cpu().numpy()
 
                     rl_ref = []
-                    robot_sim:MobileRobot = copy.deepcopy(env_eval.agent)
+                    robot_sim:MobileRobot = copy.deepcopy(env_eval.unwrapped.agent)
                     robot_sim:MobileRobot
                     for j in range(20):
                         if j == 0:
@@ -252,7 +256,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     last_mpc_time = timer_mpc(4, ms=True)
 
                 elif decision_mode == 4:
-                    env_eval.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
+                    env_eval.unwrapped.set_agent_state(traj_gen.state[:2], traj_gen.state[2], 
                                              traj_gen.last_action[0], traj_gen.last_action[1])
                     timer_rl = PieceTimer()
                     td_action = td3_model.predict(state, deterministic=True)
@@ -263,10 +267,10 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     # done = env_eval.update_termination()
                     # info = env_eval.get_info()
                     next_state = env_eval.step(td_action)
-                    action_index = td_action['action'].numpy()
+                    action_index = td_action['action'].cpu().numpy()
 
                     rl_ref = []
-                    robot_sim:MobileRobot = copy.deepcopy(env_eval.agent)
+                    robot_sim:MobileRobot = copy.deepcopy(env_eval.unwrapped.agent)
                     robot_sim:MobileRobot
                     for j in range(20):
                         if j == 0:
@@ -329,22 +333,28 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     if to_plot:
                         input('Collision or finish! Press enter to continue...')
                     break
-                else:
-                    state = step_mdp(next_state)
+                
+                state = step_mdp(next_state)
 
-    action_list = [(v, w) for (v, w) in zip(env_eval.speeds, env_eval.angular_velocities)]
+    action_list = [(v, w) for (v, w) in zip(env_eval.unwrapped.speeds, env_eval.unwrapped.angular_velocities)]
 
-    success = next_state["next"]["success"]
+    success = next_state["next"]["success"].cpu().numpy()
 
     if verbose:
         print(f"Average time ({prt_decision_mode[decision_mode]}): {np.mean(time_list)}ms\n")
     else:
         print()
-    return time_list, success, action_list, traj_gen.ref_traj, env_eval.traversed_positions, geo_map.obstacle_list
+    return time_list, success, action_list, traj_gen.ref_traj, env_eval.unwrapped.traversed_positions, geo_map.obstacle_list
 
 def main_evaluate(rl_index: int, decision_mode, metrics: Metrics, scene_option:Tuple[int, int, int]) -> Metrics:
     to_plot = False
-    time_list, success, actions, ref_traj, actual_traj, obstacle_list = main_process(rl_index=rl_index, decision_mode=decision_mode, to_plot=to_plot, scene_option=scene_option)
+    time_list, success, actions, ref_traj, actual_traj, obstacle_list = main_process(rl_index=rl_index,
+                                                                                     decision_mode=decision_mode,
+                                                                                     to_plot=to_plot,
+                                                                                     scene_option=scene_option,
+                                                                                     verbose=True)
+    #print(time_list, success, actions, ref_traj, actual_traj, obstacle_list)
+    
     metrics.add_trial_result(computation_time_list=time_list, succeed=success, action_list=actions, 
                              ref_trajectory=ref_traj, actual_trajectory=actual_traj, obstacle_list=obstacle_list)
     return metrics
@@ -410,8 +420,10 @@ if __name__ == '__main__':
             # mpc_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=mpc_metrics, scene_option=scene_option)
             # ddpg_lid_metrics = main_evaluate(rl_index=1, decision_mode=1, metrics=ddpg_lid_metrics, scene_option=scene_option)
             ddpg_img_metrics = main_evaluate(rl_index=0, decision_mode=1, metrics=ddpg_img_metrics, scene_option=scene_option)
+            td3_img_metrics = main_evaluate(rl_index=0, decision_mode=1, metrics=td3_img_metrics, scene_option=scene_option)
+
             # hyb_ddpg_lid_metrics = main_evaluate(rl_index=1, decision_mode=3, metrics=hyb_ddpg_lid_metrics, scene_option=scene_option)
-            hyb_ddpg_img_metrics = main_evaluate(rl_index=0, decision_mode=3, metrics=hyb_ddpg_img_metrics, scene_option=scene_option)
+            # hyb_ddpg_img_metrics = main_evaluate(rl_index=0, decision_mode=3, metrics=hyb_ddpg_img_metrics, scene_option=scene_option)
             # td3_lid_metrics = main_evaluate(rl_index=1, decision_mode=2, metrics=td3_lid_metrics, scene_option=scene_option)
             # td3_img_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=td3_img_metrics, scene_option=scene_option)
             # hyb_td3_lid_metrics = main_evaluate(rl_index=1, decision_mode=4, metrics=hyb_td3_lid_metrics, scene_option=scene_option)
@@ -431,14 +443,14 @@ if __name__ == '__main__':
         # print('DDPG hybrid Lidar')
         # print(hyb_ddpg_lid_metrics.get_average(round_digits))
         # print()
-        print('DDPG hybrid Image')
-        print(hyb_ddpg_img_metrics.get_average(round_digits))
-        print('td3 Lidar')
+        # print('DDPG hybrid Image')
+        # print(hyb_ddpg_img_metrics.get_average(round_digits))
+        # print('td3 Lidar')
         # print(td3_lid_metrics.get_average(round_digits))
         # print()
-        # print('td3 Image')
-        # print(td3_img_metrics.get_average(round_digits))
-        # print()
+        print('td3 Image')
+        print(td3_img_metrics.get_average(round_digits))
+        print()
         # print('td3 hybrid Lidar')
         # print(hyb_td3_lid_metrics.get_average(round_digits))
         # print()
@@ -454,8 +466,8 @@ if __name__ == '__main__':
             # print(ddpg_lid_metrics.write_latex(round_digits))
             print(ddpg_img_metrics.write_latex(round_digits))
             # print(hyb_ddpg_lid_metrics.write_latex(round_digits))
-            print(hyb_ddpg_img_metrics.write_latex(round_digits))
+            # print(hyb_ddpg_img_metrics.write_latex(round_digits))
             # print(td3_lid_metrics.write_latex(round_digits))
-            # print(td3_img_metrics.write_latex(round_digits))
+            print(td3_img_metrics.write_latex(round_digits))
             # print(hyb_td3_lid_metrics.write_latex(round_digits))
             # print(hyb_td3_img_metrics.write_latex(round_digits))

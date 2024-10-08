@@ -646,7 +646,8 @@ class AlgoBase(ABC):
         state_dict = torch.load(path, map_location=self.config.device)
         self.model.load_state_dict(state_dict)
 
-    def predict(self, td):
-        with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
+    def predict(self, td, deterministic=True):
+        exp_type = ExplorationType.DETERMINISTIC if deterministic else ExplorationType.RANDOM
+        with set_exploration_type(exp_type), torch.no_grad():
             out = self.model["policy"](td)
         return out
