@@ -56,7 +56,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 1_000_000
+    replay_buffer_size: int = 800_000 # NOTE this cannot be 1_000_000 cause the the ser
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0

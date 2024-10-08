@@ -246,12 +246,6 @@ class TrajectoryPlannerEnvironment(gym.Env):
         observation = self.get_observation()
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
-        # FIXME
-        # for k, v in rwd_dict.items():
-        #     if k == "NormAccelerationReward":
-        #         rwd_dict[k] = v - .2
-        #     if k == "NormCrossTrackReward":
-        #         rwd_dict[k] = v - .2
 
 
         base_reward = sum([rwd_dict[k] for k in self.base_keys])
@@ -262,13 +256,14 @@ class TrajectoryPlannerEnvironment(gym.Env):
         full_reward = sum(all_rewards)
 
         
-        true_reward = sum([rwd_dict[k] for k in self.true_reward_keys])
+        # make sure this is always the same scale
+        desired_scale = 0.1
+        dense_terms = rwd_dict['NormSpeedReward'] / self.config.w1 + rwd_dict['NormAccelerationReward'] / self.config.w2 + rwd_dict['NormCrossTrackReward'] / self.config.w4
+        true_reward = desired_scale * dense_terms + rwd_dict['ReachGoalReward'] + rwd_dict['CollisionReward']
 
-        # print(self.path_progress)
         # print(f"True {true_reward:.2f}, Base {base_reward:.2f}, Full {full_reward:.2f} acc {rwd_dict['NormAccelerationReward']:.2f}, cross {rwd_dict['NormCrossTrackReward']:.2f}, speed {rwd_dict['NormSpeedReward']:.2f}, path {rwd_dict['PathProgressReward']:.2f}")
 
         if self.use_wandb:
-            # TODO how can I log this while ensuring that the step order is preserved?
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
             log_stats['rewards/full_reward'] = full_reward
             log_stats['rewards/base_reward'] = base_reward
@@ -279,9 +274,9 @@ class TrajectoryPlannerEnvironment(gym.Env):
         info = self.get_info(full_reward, base_reward, true_reward=true_reward) #reward_vec, 
 
         if GYM_0_22_X:
-            return observation, base_reward, terminated, False, info
+            return observation, true_reward, terminated, False, info
         else:
-            return observation, base_reward, terminated, info
+            return observation, true_reward, terminated, info
 
     def render(self, mode:str="human", dqn_ref=None, actual_ref=None, original_ref=None, save=False, save_num:int=1) -> Union[None, NDArray[np.uint8]]:
         external = self.obsv.get("external")

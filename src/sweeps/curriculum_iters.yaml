@@ -1,0 +1,32 @@
+program: DRL-Traj-Planner/src/continous_training_sweep.py
+method: grid
+metric:
+  name: eval/episode_success
+  goal: maximize
+parameters:
+  algo:
+    value: "sac"
+  map_key:
+    value: "random"
+  reward_mode:
+    value: "curriculum_step"
+  env_name:
+    value: "TrajectoryPlannerEnvironmentImgsReward3-v0"
+  seed:
+    values: [1235, 2621, 12, 52]
+  sac:
+    parameters:
+      total_frames:
+        value: 1000000
+      replay_buffer_size:
+        value: 800000
+      curriculum:
+        parameters:
+          steps_stage_1:
+            value: 500000
+          base_reward_keys:
+            value: "gds"
+          all_reward_keys:
+            value: "gdcsax"
+          num_updates_after_update:
+            values: [1000, 25000, 50000, 100000]

@@ -19,13 +19,13 @@ parameters:
       total_frames:
         value: 1000000
       replay_buffer_size:
-        value: 1000000
+        value: 800000
       curriculum:
         parameters:
           steps_stage_1:
             values: [200000, 350000, 500000]
           base_reward_keys:
-            values: ["gds", "gdcsax"]
+            value: "gds"
           all_reward_keys:
             value: "gdcsax"
           num_updates_after_update:
