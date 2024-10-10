@@ -28,6 +28,7 @@ from timer import PieceTimer, LoopTimer
 from typing import List, Tuple
 
 from pkg_ddpg_td3.utils.map import generate_map_corridor
+from pkg_ddpg_td3.utils.map_eval import *
 from configs import BaseConfig
 
 MAX_RUN_STEP = 200
