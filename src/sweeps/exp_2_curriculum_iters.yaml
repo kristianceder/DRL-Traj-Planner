@@ -13,7 +13,7 @@ parameters:
   env_name:
     value: "TrajectoryPlannerEnvironmentImgsReward3-v0"
   seed:
-    values: [1235, 2621, 12, 52]
+    values: [1235, 2621, 12, 52, 27345, 5, 1346, 6455, 86, 22]
   sac:
     parameters:
       total_frames:
@@ -29,4 +29,6 @@ parameters:
           all_reward_keys:
             value: "gdcsax"
           num_updates_after_update:
-            values: [1000, 25000, 50000, 100000]
+            values: [1000, 25000, 50000 ]
+          reset_buffer:
+            value: False
