@@ -7,6 +7,8 @@ position and the locations of obstacles and boundaries.
 import math
 import random
 
+import shapely.ops
+from shapely.geometry import LineString, Polygon, JOIN_STYLE, Point
 import numpy as np
 from math import pi, radians, cos, sin
 
@@ -448,6 +450,159 @@ def generate_eval_map143() -> MapDescription:
 
     obstacles.extend(unexpected_obstacles)
     return MobileRobot(np.array([0.6, 3.5, 0.0, 0, 0])),Boundary([(0.0, 0.0), (16.0, 0.0), (16.0, 10.0), (0.0, 10.0)]), obstacles, Goal((15.4, 3.5))
+
+
+def generate_eval_map151() -> MapDescription:
+    """
+    Generates a map with a narrow corridor and dynamic obstacles, 
+    used for evaluating which model is best.
+    """
+
+    max_angle = math.pi / 2
+
+    wall_padding = 5
+    corridor_padding = 1.5
+
+    coords = np.asarray([(0, 0), (wall_padding, 0)])
+    angle = 0
+
+    dangle = np.array([-44.2292,56.5713,-46.1655,77.2675,-27.0029])*pi/180
+    length = [7.7585,4.0423,5.5116,3.3429,6.5076]
+
+    for i in range(5):
+        lo = -max_angle - angle
+        hi = max_angle - angle
+        dangle[i] = dangle[i]**2 / (hi if dangle[i] > 0 else lo)
+        angle += dangle[i]
+        coords = np.vstack((coords, coords[i + 1, :] + length[i]*np.asarray((cos(angle), sin(angle)))))
+    coords = np.vstack((coords, coords[-1, :] + (wall_padding, 0)))
+    
+    corridor = LineString(coords)
+    
+    minx, miny, maxx, maxy = corridor.bounds
+
+    wall_padding = 5
+    pminx = minx - wall_padding
+    pminy = miny - wall_padding-5
+    pmaxx = maxx + wall_padding
+    pmaxy = maxy + wall_padding
+
+    boundary = Boundary([(pminx-20, pminy), (pmaxx+25, pminy), (25+pmaxx, pmaxy), (pminx-20, pmaxy)])
+
+    init_state = np.array([pminx-15, 3, -pi/3, 0, 0])
+    robot = MobileRobot(init_state)
+    goal = Goal((18.5+pmaxx, -10))
+
+    pminx = minx + wall_padding
+    pmaxx = maxx - wall_padding
+
+    obstacles = []
+
+    obstacles.append(Obstacle.create_mpc_static([(-14, -5), (-8, -5), (-8, 7), (-14, 7)]))
+    
+    
+    # obstacles.append(Obstacle.create_mpc_dynamic((-18, -4), (-15, 0), 0.4, 0.7, 0.5, pi/4, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((-10, -10), (-10, -7), 0.4, 0.7, 1, 0, random = False))
+    obstacles.append(Obstacle.create_mpc_dynamic((1, -7), (-4, 1), 0.2, 1, 0.5, -pi/4, random = False))
+    # obstacles.append(Obstacle.create_mpc_dynamic((30,2), (40,5), 0.2, 1, 1, pi/3, random = False))
+    
+    obstacles.append(Obstacle.create_non_convex_u_shape((54.25,-2.5), (54.25,-2.5), 0.3, pi+pi/8, use_random=False))
+    obstacles.append(Obstacle.create_mpc_static([(42, -14), (50, -14), (50, 5), (42, 5)]))
+
+    if pminx < pmaxx:
+        box = Polygon([(pminx, pminy), (pmaxx, pminy), (pmaxx, pmaxy), (pminx, pmaxy)])
+        left = corridor.parallel_offset(corridor_padding, 'left', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+        right = corridor.parallel_offset(corridor_padding, 'right', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+
+        eps = 1e-3
+
+        split = shapely.ops.split(box, right)
+        test = Point((pminx + eps, pminy + eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+        
+        split = shapely.ops.split(box, left)
+        test = Point((pminx + eps, pmaxy - eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+    
+    return robot, boundary, obstacles, goal
+
+
+def generate_eval_map152() -> MapDescription:
+    """
+    Generates a simplified map with a corridor and fewer obstacles.
+    """
+
+    max_angle = math.pi / 2
+
+    wall_padding = 5
+    corridor_padding = 1.5
+
+    coords = np.asarray([(0, 0), (wall_padding, 0)])
+    angle = 0
+
+    dangle = np.array([-44.2292,56.5713,-46.1655,77.2675,-27.0029])*pi/180
+    length = [7.7585,4.0423,5.5116,3.3429,6.5076]
+
+    for i in range(5):
+        lo = -max_angle - angle
+        hi = max_angle - angle
+        dangle[i] = dangle[i]**2 / (hi if dangle[i] > 0 else lo)
+        angle += dangle[i]
+        coords = np.vstack((coords, coords[i + 1, :] + length[i]*np.asarray((cos(angle), sin(angle)))))
+    coords = np.vstack((coords, coords[-1, :] + (wall_padding, 0)))
+    
+    corridor = LineString(coords)
+    
+    minx, miny, maxx, maxy = corridor.bounds
+
+    wall_padding = 5
+    pminx = minx
+    pminy = miny - wall_padding-5
+    pmaxx = maxx
+    pmaxy = maxy + wall_padding
+
+    boundary = Boundary([(pminx-10, pminy), (pmaxx+15, pminy), (15+pmaxx, pmaxy), (pminx-10, pmaxy)])
+
+    init_state = np.array([pminx-5, 3, -pi/3, 0, 0])
+    robot = MobileRobot(init_state)
+    goal = Goal((5+pmaxx, -10))
+
+    pminx = minx + wall_padding
+    pmaxx = maxx - wall_padding
+
+    obstacles = []
+
+    obstacles.append(Obstacle.create_mpc_dynamic((5,-0.5), (5,3), 0.1, 1, 1, pi/3, random = False))    
+    obstacles.append(Obstacle.create_non_convex_u_shape((36,-5.5), (36,-5.5), 0.3, pi+pi/5, use_random=False))
+
+    if pminx < pmaxx:
+        box = Polygon([(pminx, pminy), (pmaxx, pminy), (pmaxx, pmaxy), (pminx, pmaxy)])
+        left = corridor.parallel_offset(corridor_padding, 'left', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+        right = corridor.parallel_offset(corridor_padding, 'right', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+
+        eps = 1e-3
+
+        split = shapely.ops.split(box, right)
+        test = Point((pminx + eps, pminy + eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+        
+        split = shapely.ops.split(box, left)
+        test = Point((pminx + eps, pmaxy - eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+
+    return robot, boundary, obstacles, goal
 
 
 def generate_eval_maps() -> MapDescription:

@@ -241,7 +241,7 @@ class Obstacle:
             for i in range(corners):
                 angle2 = 2 * pi * i / corners
                 nodes[i, :] = (rx * cos(angle2), -ry * sin(angle2))
-            offset = np.random.uniform(0,2)*pi/freq if freq > 0 else 0
+            offset = 0.#np.random.uniform(0,2)*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))
 
     @staticmethod
@@ -267,7 +267,7 @@ class Obstacle:
             right = .5
             thickness = r / 1.5
         u_shape = np.array([[-r, -right], [-r, r], [r, r],[r, -left],[thickness, -left], [thickness, thickness], [-thickness, thickness], [-thickness, -right]])
-        scaling_factor = 1 + random.uniform(0,1) if use_random else 1.5
+        scaling_factor = 1 + random.uniform(0,1) if use_random else 1.2
         nodes = u_shape*scaling_factor
         offset = 0.5*pi/freq if freq > 0 else 0
         return Obstacle(nodes, False, Animation.periodic(p1, p2, freq, angle, offset=offset))

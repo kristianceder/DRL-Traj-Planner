@@ -267,13 +267,14 @@ if __name__ == '__main__':
                         #  (1, 2, 3), # d-large
                         #  (1, 2, 4), # d-large
                         #  (1, 3, 1), # e-small
-                         (1, 3, 2), # f-large
+                        #  (1, 3, 2), # f-large
                         #  (1, 3, 3), # ?
                         #  (1, 3, 4), # ?
                         #  (1, 4, 1), # face-to-face
                         #  (1, 4, 2), # ?
                         #  (1, 4, 3), # ?
-
+                        # (1, 5, 1) # eval map long
+                        (1, 5, 2) # eval map
                          ]
                         #  (2, 1, 1), # right turn with an obstacle
                         #  (2, 1, 2), # sharp turn with an obstacle

@@ -31,6 +31,8 @@ from pkg_torchrl.ppo import PPO
 from pkg_torchrl.td3 import TD3
 from pkg_torchrl.ddpg import DDPG
 
+from pkg_ddpg_td3.utils.map_eval import *
+
 from configs import BaseConfig
 
 
@@ -71,20 +73,16 @@ def run():
     generate_map = get_map(config.map_key)
 
     train_env = make_env(config, generate_map=generate_map)
-    eval_env = make_env(config, generate_map=generate_map)
+    eval_env = make_env(config, generate_map=generate_eval_map152)
 
     algo_config = getattr(config, config.algo.lower())
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
-    models_path = Path('../Model/testing')
+    models_path = Path('../Model/cr_experiment')
 
     if args.path is None:
         # get latest path
         path = max(models_path.glob('*/'), key=os.path.getmtime) / "final_model.pth"
         model.load(path)
-    elif args.path == 'pretrain':
-        path = '../Model/testing/pretrained_actor.pt'
-        actor_sd = torch.load(path)
-        model.model['policy'].load_state_dict(actor_sd)
     else:
         path = models_path / args.path / "final_model.pth"
         model.load(path)
