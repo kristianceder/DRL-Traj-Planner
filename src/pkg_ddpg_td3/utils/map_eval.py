@@ -541,7 +541,7 @@ def generate_eval_map152() -> MapDescription:
     max_angle = math.pi / 2
 
     wall_padding = 5
-    corridor_padding = 1.5
+    corridor_padding = 1.8
 
     coords = np.asarray([(0, 0), (wall_padding, 0)])
     angle = 0
@@ -569,7 +569,7 @@ def generate_eval_map152() -> MapDescription:
 
     boundary = Boundary([(pminx-10, pminy), (pmaxx+15, pminy), (15+pmaxx, pmaxy), (pminx-10, pmaxy)])
 
-    init_state = np.array([pminx-5, 3, -pi/3, 0, 0])
+    init_state = np.array([pminx-5, -8, -pi/3, 0, 0])
     robot = MobileRobot(init_state)
     goal = Goal((5+pmaxx, -10))
 
@@ -578,8 +578,8 @@ def generate_eval_map152() -> MapDescription:
 
     obstacles = []
 
-    obstacles.append(Obstacle.create_mpc_dynamic((5,-0.5), (5,3), 0.1, 1, 1, pi/3, random = False))    
-    obstacles.append(Obstacle.create_non_convex_u_shape((36,-5.5), (36,-5.5), 0.3, pi+pi/5, use_random=False))
+    # obstacles.append(Obstacle.create_mpc_dynamic((5,-0.5), (5,3), 0.1, 1, 1, pi/3, random = False))    
+    obstacles.append(Obstacle.create_non_convex_u_shape((38,-6.0), (38,-6.0), 0.3, pi+pi/5, use_random=False))
 
     if pminx < pmaxx:
         box = Polygon([(pminx, pminy), (pmaxx, pminy), (pmaxx, pmaxy), (pminx, pmaxy)])

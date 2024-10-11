@@ -31,7 +31,7 @@ from typing import List, Tuple
 from pkg_ddpg_td3.utils.map_eval import *
 from configs import BaseConfig
 
-MAX_RUN_STEP = 200
+MAX_RUN_STEP = 400
 DYN_OBS_SIZE = 0.8 + 0.8
 
 def ref_traj_filter(original: np.ndarray, new: np.ndarray, decay=1):
@@ -220,12 +220,16 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     return time_list, success, action_list, traj_gen.ref_traj, env_eval.unwrapped.traversed_positions, geo_map.obstacle_list
 
 def main_evaluate(rl_index: int, decision_mode, metrics: Metrics, scene_option:Tuple[int, int, int]) -> Metrics:
-    to_plot = True
+    to_plot = False
     time_list, success, actions, ref_traj, actual_traj, obstacle_list = main_process(rl_index=rl_index,
                                                                                      decision_mode=decision_mode,
                                                                                      to_plot=to_plot,
                                                                                      scene_option=scene_option,
                                                                                      verbose=True)
+    
+    np_traj = np.stack(actual_traj)
+    np.savetxt(f"../Model/cr_experiment/trajectories/{decision_mode}_{rl_index}.txt", np_traj, delimiter=",")
+
     metrics.add_trial_result(computation_time_list=time_list, succeed=success, action_list=actions, 
                              ref_trajectory=ref_traj, actual_trajectory=actual_traj, obstacle_list=obstacle_list)
     return metrics
@@ -256,7 +260,7 @@ if __name__ == '__main__':
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = Baseline, 2 = Curriculum
     """
-    num_trials = 10 # 50
+    num_trials = 8 # 50
     print_latex = True
     scene_option_list = [
                         #  (1, 1, 1), # a-small
@@ -289,10 +293,11 @@ if __name__ == '__main__':
         cr_metrics = Metrics(mode='Curriculum')
 
         for i in range(num_trials):
+            rl_index = i + 1
             print(f"Trial {i+1}/{num_trials}")
             # mpc_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=mpc_metrics, scene_option=scene_option)
-            baseline_metrics = main_evaluate(rl_index=i, decision_mode=1, metrics=baseline_metrics, scene_option=scene_option)
-            cr_metrics = main_evaluate(rl_index=i, decision_mode=2, metrics=cr_metrics, scene_option=scene_option)
+            baseline_metrics = main_evaluate(rl_index=rl_index, decision_mode=1, metrics=baseline_metrics, scene_option=scene_option)
+            cr_metrics = main_evaluate(rl_index=rl_index, decision_mode=2, metrics=cr_metrics, scene_option=scene_option)
 
         round_digits = 2
         print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
@@ -309,3 +314,12 @@ if __name__ == '__main__':
             print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
             print(baseline_metrics.write_latex(round_digits))
             print(cr_metrics.write_latex(round_digits))
+
+            baseline_results = baseline_metrics.write_latex(round_digits)
+            cr_results = cr_metrics.write_latex(round_digits)
+
+            with open("../Model/cr_experiment/base_results.txt", "w") as file:
+                file.write(baseline_results)
+
+            with open("../Model/cr_experiment/cr_results.txt", "w") as file:
+                file.write(cr_results)
