@@ -75,7 +75,7 @@ def make_env(config, max_eps_steps=None, **kwargs):
 
 
 def render_rollout(eval_env, model, config, n_steps=2_000, is_torchrl=True):
-    with set_exploration_type(ExplorationType.MODE), torch.no_grad():
+    with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
         state = eval_env.reset()
         steps = 0
         ep_rwd = torch.zeros(1).to(config.device)

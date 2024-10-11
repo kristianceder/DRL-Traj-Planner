@@ -7,7 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### DRL import
-from torch import no_grad
+import torch
+from torchrl.envs.utils import ExplorationType, set_exploration_type
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.env import make_env
 from torchrl.envs import step_mdp
@@ -27,7 +28,6 @@ from pkg_ddpg_td3.utils.map import test_scene_1_dict, test_scene_2_dict
 from timer import PieceTimer, LoopTimer
 from typing import List, Tuple
 
-from pkg_ddpg_td3.utils.map import generate_map_corridor
 from pkg_ddpg_td3.utils.map_eval import *
 from configs import BaseConfig
 
@@ -55,9 +55,9 @@ def load_rl_model_env(generate_map, index: int) -> Tuple[SAC, SAC, TrajectoryPla
     cr_model = SAC(config.sac, env_eval, env_eval)
     cr_model.load(model_path_cr)
 
-    ddpg_model, td3_model = base_model, cr_model
+    base_model, cr_model = base_model, cr_model
 
-    return ddpg_model, td3_model, env_eval
+    return base_model, cr_model, env_eval
 
 def load_mpc(config_path: str, verbose: bool = True):
     config = Configurator(config_path, verbose=verbose)
@@ -93,9 +93,8 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
 
     time_list = []
 
-    # FIXME find out why generate_map is not working
-    # ddpg_model, td3_model, env_eval = load_rl_model_env(generate_map(*scene_option), rl_index)
-    ddpg_model, td3_model, env_eval = load_rl_model_env(generate_map_corridor, rl_index)
+    gen_map = eval(f"generate_eval_map{''.join(map(str, scene_option))}")
+    base_model, cr_model, env_eval = load_rl_model_env(gen_map, rl_index)
 
     CONFIG_FN = 'mpc_longiter.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
@@ -104,7 +103,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     traj_gen.update_static_constraints(geo_map.processed_obstacle_list) # assuming static obstacles not changed
 
     done = False
-    with no_grad():
+    with torch.no_grad():
         while not done:
             state = env_eval.reset()
 
@@ -161,18 +160,23 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
-                    td_action = ddpg_model.predict(state, deterministic=True)
+                    # td_action = base_model.predict(state, deterministic=True)
+                    with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
+                        td_action = base_model.model["policy"](state)
                     last_rl_time = timer_rl(4, ms=True)
                     next_state = env_eval.step(td_action)
+                    done = next_state["next"]["done"].cpu().numpy()
 
                 elif decision_mode == 2:
                     traj_gen.set_current_state(env_eval.unwrapped.agent.state)
-                    original_ref_traj, _ = traj_gen.get_local_ref_traj() # just for output
+                    original_ref_traj, *_ = traj_gen.get_local_ref_traj() # just for output
 
                     timer_rl = PieceTimer()
-                    td_action = td3_model.predict(state, deterministic=True)
+                    with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
+                        td_action = cr_model.model["policy"](state)
                     last_rl_time = timer_rl(4, ms=True)
                     next_state = env_eval.step(td_action)
+                    done = next_state["next"]["done"].cpu().numpy()
 
                 else:
                     raise ValueError("Invalid decision mode")
@@ -184,15 +188,15 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                 elif decision_mode == 1:
                     time_list.append(last_rl_time)
                     if to_plot:
-                        print(f"Step {i}.Runtime (DDPG): {last_rl_time}ms")
+                        print(f"Step {i}.Runtime (Baseline): {last_rl_time}ms")
                 elif decision_mode == 2:
                     time_list.append(last_rl_time)
                     if to_plot:
-                        print(f"Step {i}.Runtime (td3): {last_rl_time}ms")     
+                        print(f"Step {i}.Runtime (Curriculum): {last_rl_time}ms")     
 
 
                 if to_plot & (i%1==0): # render every third frame
-                    env_eval.render(dqn_ref=rl_ref, actual_ref=chosen_ref_traj)
+                    env_eval.unwrapped.render(dqn_ref=rl_ref, actual_ref=chosen_ref_traj)
 
                 if i == MAX_RUN_STEP - 1:
                     done = True
@@ -216,7 +220,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     return time_list, success, action_list, traj_gen.ref_traj, env_eval.unwrapped.traversed_positions, geo_map.obstacle_list
 
 def main_evaluate(rl_index: int, decision_mode, metrics: Metrics, scene_option:Tuple[int, int, int]) -> Metrics:
-    to_plot = False
+    to_plot = True
     time_list, success, actions, ref_traj, actual_traj, obstacle_list = main_process(rl_index=rl_index,
                                                                                      decision_mode=decision_mode,
                                                                                      to_plot=to_plot,
@@ -252,35 +256,42 @@ if __name__ == '__main__':
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = Baseline, 2 = Curriculum
     """
-    num_trials = 50 # 50
+    num_trials = 1 # 50
     print_latex = True
     scene_option_list = [
+                        #  (1, 1, 1), # a-small
                         #  (1, 1, 2), # a-medium
                         #  (1, 1, 3), # b-large
-                         (1, 2, 1), # c-small
+                        #  (1, 2, 1), # c-small
                         #  (1, 2, 2), # d-large
+                        #  (1, 2, 3), # d-large
+                        #  (1, 2, 4), # d-large
                         #  (1, 3, 1), # e-small
-                        #  (1, 3, 2), # f-large
+                         (1, 3, 2), # f-large
+                        #  (1, 3, 3), # ?
+                        #  (1, 3, 4), # ?
                         #  (1, 4, 1), # face-to-face
+                        #  (1, 4, 2), # ?
+                        #  (1, 4, 3), # ?
+
+                         ]
                         #  (2, 1, 1), # right turn with an obstacle
                         #  (2, 1, 2), # sharp turn with an obstacle
                         #  (2, 1, 3), # u-turn with an obstacle
-                         ]
-    
 
     for scene_option in scene_option_list:
 
         print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
 
         mpc_metrics = Metrics(mode='MPC')
-        baseline_metrics = Metrics(mode='DDPG-V')
-        cr_metrics = Metrics(mode='TD3-V')
+        baseline_metrics = Metrics(mode='Baseline')
+        cr_metrics = Metrics(mode='Curriculum')
 
         for i in range(num_trials):
             print(f"Trial {i+1}/{num_trials}")
             # mpc_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=mpc_metrics, scene_option=scene_option)
             baseline_metrics = main_evaluate(rl_index=0, decision_mode=1, metrics=baseline_metrics, scene_option=scene_option)
-            cr_metrics = main_evaluate(rl_index=0, decision_mode=1, metrics=cr_metrics, scene_option=scene_option)
+            cr_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=cr_metrics, scene_option=scene_option)
 
         round_digits = 2
         print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")

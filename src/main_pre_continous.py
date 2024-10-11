@@ -67,7 +67,7 @@ class Metrics:
         Args:
             mode: dqn, mpc, or hyb
         """
-        if mode not in ['MPC', 'DDPG-L', 'DDPG-V', 'TD3-L', 'TD3-V','HYB-DDPG-L', 'HYB-DDPG-V', 'HYB-TD3-L', 'HYB-TD3-V']:
+        if mode not in ['MPC', 'Baseline', 'Curriculum', 'DDPG-L', 'DDPG-V', 'TD3-L', 'TD3-V','HYB-DDPG-L', 'HYB-DDPG-V', 'HYB-TD3-L', 'HYB-TD3-V']:
             raise ValueError(f"Mode {mode} not recognized (should be 'MPC', 'DDPG-L', 'DDPG-V', 'TD3-L', 'TD3-V','HYB-DDPG-L', 'HYB-DDPG-V', 'HYB-TD3-L', 'HYB-TD3-V').")
         self.mode = mode
         self.trial_list = []
