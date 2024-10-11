@@ -45,9 +45,9 @@ def ref_traj_filter(original: np.ndarray, new: np.ndarray, decay=1):
 
 def load_rl_model_env(generate_map, index: int) -> Tuple[SAC, SAC, TrajectoryPlannerEnvironment]:
     config = BaseConfig()
-    models_folder = Path("../Model/testing")
-    model_path_base = models_folder / "base_01" / "final_model.pth"
-    model_path_cr = models_folder / "cr_1" / "final_model.pth"
+    models_folder = Path("../Model/cr_experiment")
+    model_path_base = models_folder / f"base_{index}" / "final_model.pth"
+    model_path_cr = models_folder / f"cr_{index}" / "final_model.pth"
     
     env_eval = make_env(config, generate_map=generate_map)
     base_model = SAC(config.sac, env_eval, env_eval)
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = Baseline, 2 = Curriculum
     """
-    num_trials = 1 # 50
+    num_trials = 10 # 50
     print_latex = True
     scene_option_list = [
                         #  (1, 1, 1), # a-small
@@ -291,8 +291,8 @@ if __name__ == '__main__':
         for i in range(num_trials):
             print(f"Trial {i+1}/{num_trials}")
             # mpc_metrics = main_evaluate(rl_index=1, decision_mode=0, metrics=mpc_metrics, scene_option=scene_option)
-            baseline_metrics = main_evaluate(rl_index=0, decision_mode=1, metrics=baseline_metrics, scene_option=scene_option)
-            cr_metrics = main_evaluate(rl_index=0, decision_mode=2, metrics=cr_metrics, scene_option=scene_option)
+            baseline_metrics = main_evaluate(rl_index=i, decision_mode=1, metrics=baseline_metrics, scene_option=scene_option)
+            cr_metrics = main_evaluate(rl_index=i, decision_mode=2, metrics=cr_metrics, scene_option=scene_option)
 
         round_digits = 2
         print(f"=== Scene {scene_option[0]}-{scene_option[1]}-{scene_option[2]} ===")
