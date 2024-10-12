@@ -225,10 +225,10 @@ def main_evaluate(rl_index: int, decision_mode, metrics: Metrics, scene_option:T
                                                                                      decision_mode=decision_mode,
                                                                                      to_plot=to_plot,
                                                                                      scene_option=scene_option,
-                                                                                     verbose=True)
+                                                                                     verbose=False)
     
     np_traj = np.stack(actual_traj)
-    np.savetxt(f"../Model/cr_experiment/trajectories/{decision_mode}_{rl_index}.txt", np_traj, delimiter=",")
+    np.savetxt(f"../Model/cr_experiment/trajectories/{decision_mode}_{rl_index}_{scene_option}.txt", np_traj, delimiter=",")
 
     metrics.add_trial_result(computation_time_list=time_list, succeed=success, action_list=actions, 
                              ref_trajectory=ref_traj, actual_trajectory=actual_traj, obstacle_list=obstacle_list)
@@ -260,7 +260,7 @@ if __name__ == '__main__':
     rl_index: 0 = image, 1 = ray
     decision_mode: 0 = MPC, 1 = Baseline, 2 = Curriculum
     """
-    num_trials = 8 # 50
+    num_trials = 9 # 50
     print_latex = True
     scene_option_list = [
                         #  (1, 1, 1), # a-small
@@ -276,9 +276,12 @@ if __name__ == '__main__':
                         #  (1, 3, 4), # ?
                         #  (1, 4, 1), # face-to-face
                         #  (1, 4, 2), # ?
-                        #  (1, 4, 3), # ?
+                        # (1, 4, 3), # ?
+                        # (1, 4, 4), # ?
                         # (1, 5, 1) # eval map long
-                        (1, 5, 2) # eval map
+                        (1, 5, 2), # eval map
+                        # (1, 5, 3), # eval map
+                        (1, 7, 1),
                          ]
                         #  (2, 1, 1), # right turn with an obstacle
                         #  (2, 1, 2), # sharp turn with an obstacle

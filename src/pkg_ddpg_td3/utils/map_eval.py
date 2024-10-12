@@ -432,24 +432,58 @@ def generate_eval_map143() -> MapDescription:
     """
     Generates a randomized map with many dynamic obstacles
     """
+    obstacles_list = [  [(0.0, 1.5), (0.0, 1.6), (9.0, 1.6), (9.0, 1.5)],
+                        [(0.0, 8.4), (0.0, 8.5), (9.0, 8.5), (9.0, 8.4)],
+                        [(11.0, 1.5), (11.0, 1.6), (16.0, 1.6), (16.0, 1.5)],
+                        [(11.0, 8.4), (11.0, 8.5), (16.0, 8.5), (16.0, 8.4)],]
+    obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in obstacles_list]
+    # obstacles = []
+    unexpected_obstacles = []
+    # unexpected_obstacle = Obstacle.create_mpc_static([(7.2, 1.8), (7.2, 4.2), (8.8, 4.2), (8.8, 1.8)]) # medium
+    # unexpected_obstacles.append(unexpected_obstacle)
+    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(10.0, 9.0), p2=(10.0, 1.0), freq=0.08,
+                                                          rx=0.8, ry=1.2, angle=0.0, corners=20)
+    unexpected_obstacles.append(unexpected_obstacle)
+    
+    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(20.0, 4.), p2=(20.0, 4.), freq=0.08,
+                                                          rx=1.0, ry=.5, angle=0.0, corners=20)
+    unexpected_obstacles.append(unexpected_obstacle)
+
+    for o in unexpected_obstacles:
+        o.visible_on_reference_path = False
+
+    obstacles.extend(unexpected_obstacles)
+    return MobileRobot(np.array([0.6, 3.0, 0.0, 0, 0])),Boundary([(0.0, 0.0), (30.0, 0.0), (30.0, 10.0), (0.0, 10.0)]), obstacles, Goal((25., 7.))
+
+
+def generate_eval_map144() -> MapDescription:
+    """
+    Generates a randomized map with many dynamic obstacles
+    """
 
     obstacles_list = [  [(0.0, 1.5), (0.0, 1.6), (9.0, 1.6), (9.0, 1.5)],
                         [(0.0, 8.4), (0.0, 8.5), (9.0, 8.5), (9.0, 8.4)],
                         [(11.0, 1.5), (11.0, 1.6), (16.0, 1.6), (16.0, 1.5)],
                         [(11.0, 8.4), (11.0, 8.5), (16.0, 8.5), (16.0, 8.4)],]
     obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in obstacles_list]
-
+    # obstacles = []
     unexpected_obstacles = []
-    unexpected_obstacle = Obstacle.create_mpc_static([(7.2, 2.8), (7.2, 4.2), (8.8, 4.2), (8.8, 2.8)]) # medium
-    unexpected_obstacles.append(unexpected_obstacle)
-    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(10.0, 1.0), p2=(10.0, 9.0), freq=0.2, rx=0.8, ry=0.8, angle=0.0, corners=20)
+    # unexpected_obstacle = Obstacle.create_mpc_static([(7.2, 1.8), (7.2, 4.2), (8.8, 4.2), (8.8, 1.8)]) # medium
+    # unexpected_obstacles.append(unexpected_obstacle)
+    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(10.0, 9.0), p2=(10.0, 1.0), freq=0.08,
+                                                          rx=0.8, ry=1.2, angle=0.0, corners=20)
     unexpected_obstacles.append(unexpected_obstacle)
     
+    unexpected_obstacle = Obstacle.create_mpc_dynamic_old(p1=(20.0, 4.), p2=(20.0, 4.), freq=0.08,
+                                                          rx=1., ry=.5, angle=0.0, corners=20)
+    unexpected_obstacles.append(unexpected_obstacle)
+
     for o in unexpected_obstacles:
         o.visible_on_reference_path = False
 
     obstacles.extend(unexpected_obstacles)
-    return MobileRobot(np.array([0.6, 3.5, 0.0, 0, 0])),Boundary([(0.0, 0.0), (16.0, 0.0), (16.0, 10.0), (0.0, 10.0)]), obstacles, Goal((15.4, 3.5))
+    return MobileRobot(np.array([0.6, 7.0, 0.0, 0, 0])),Boundary([(0.0, 0.0), (30.0, 0.0), (30.0, 10.0), (0.0, 10.0)]), obstacles, Goal((25., 3.))
+
 
 
 def generate_eval_map151() -> MapDescription:
@@ -579,7 +613,7 @@ def generate_eval_map152() -> MapDescription:
     obstacles = []
 
     # obstacles.append(Obstacle.create_mpc_dynamic((5,-0.5), (5,3), 0.1, 1, 1, pi/3, random = False))    
-    obstacles.append(Obstacle.create_non_convex_u_shape((38,-6.0), (38,-6.0), 0.3, pi+pi/5, use_random=False))
+    # obstacles.append(Obstacle.create_non_convex_u_shape((38,-6.0), (38,-6.0), 0.3, pi+pi/5, use_random=False))
 
     if pminx < pmaxx:
         box = Polygon([(pminx, pminy), (pmaxx, pminy), (pmaxx, pmaxy), (pminx, pmaxy)])
@@ -601,6 +635,130 @@ def generate_eval_map152() -> MapDescription:
             if geom.contains(test):
                 obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
                 break
+
+    return robot, boundary, obstacles, goal
+
+def generate_eval_map153() -> MapDescription:
+    """
+    Generates a simplified map with a corridor and fewer obstacles.
+    """
+
+    max_angle = math.pi / 2
+
+    wall_padding = 5
+    corridor_padding = 1.8
+
+    coords = np.asarray([(0, 0), (wall_padding, 0)])
+    angle = 0
+
+    dangle = np.array([-44.2292,56.5713,-46.1655,77.2675,-27.0029])*pi/180
+    length = [7.7585,4.0423,5.5116,3.3429,6.5076]
+
+    for i in range(5):
+        lo = -max_angle - angle
+        hi = max_angle - angle
+        dangle[i] = dangle[i]**2 / (hi if dangle[i] > 0 else lo)
+        angle += dangle[i]
+        coords = np.vstack((coords, coords[i + 1, :] + length[i]*np.asarray((cos(angle), sin(angle)))))
+    coords = np.vstack((coords, coords[-1, :] + (wall_padding, 0)))
+    
+    corridor = LineString(coords)
+    
+    minx, miny, maxx, maxy = corridor.bounds
+
+    wall_padding = 5
+    pminx = minx
+    pminy = miny - wall_padding-5
+    pmaxx = maxx
+    pmaxy = maxy + wall_padding
+
+    boundary = Boundary([(pminx-10, pminy), (pmaxx+15, pminy), (15+pmaxx, pmaxy), (pminx-10, pmaxy)])
+
+    init_state = np.array([pminx-5, 5, -pi/3, 0, 0])
+    robot = MobileRobot(init_state)
+    goal = Goal((5+pmaxx, 5))
+
+    pminx = minx + wall_padding
+    pmaxx = maxx - wall_padding
+
+    obstacles = []
+
+    # obstacles.append(Obstacle.create_mpc_dynamic((5,-0.5), (5,3), 0.1, 1, 1, pi/3, random = False))    
+    # obstacles.append(Obstacle.create_non_convex_u_shape((38,-6.0), (38,-6.0), 0.3, pi+pi/5, use_random=False))
+
+    if pminx < pmaxx:
+        box = Polygon([(pminx, pminy), (pmaxx, pminy), (pmaxx, pmaxy), (pminx, pmaxy)])
+        left = corridor.parallel_offset(corridor_padding, 'left', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+        right = corridor.parallel_offset(corridor_padding, 'right', join_style=JOIN_STYLE.mitre, mitre_limit=1)
+
+        eps = 1e-3
+
+        split = shapely.ops.split(box, right)
+        test = Point((pminx + eps, pminy + eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+        
+        split = shapely.ops.split(box, left)
+        test = Point((pminx + eps, pmaxy - eps))
+        for geom in split.geoms:
+            if geom.contains(test):
+                obstacles.append(Obstacle.create_mpc_static(geom.exterior.coords[:-1]))
+                break
+
+    return robot, boundary, obstacles, goal
+
+def generate_eval_map171() -> MapDescription:
+    """
+    Generates a randomized map with many dynamic obstalces
+    """
+
+    init_state = np.array([5., 10., 0., 0, 0])
+    robot = MobileRobot(init_state)
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
+    obstacles = []
+
+
+    # rand = random.uniform(0,5 )
+    x = 10.
+    y = 5. 
+    w = 5.
+    h = 5.
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+    
+    x = 20.
+    y = 15
+    w = 4.
+    h = 10.
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+
+    x = 25.
+    y = 3.
+    x2 = 22.
+    y2 = 10.
+    rx = .5
+    ry = 2.
+    # freq = 0.0000001
+    freq = 0.2#random.uniform(0.1, 0.3)
+    angle = math.pi
+    obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
+
+
+    x = 30.
+    y = 4.
+    x2 = 22.
+    y2 = 11.
+    freq = 0.000000001
+    # freq = random.uniform(0.1, 0.3)
+    angle = -math.pi / 2# * (3 / 4)
+    obstacles.append(Obstacle.create_non_convex_u_shape((x,y), (x2,y2), freq, angle, use_random=False))
+    
+    goal = Goal((35, 5))
 
     return robot, boundary, obstacles, goal
 
