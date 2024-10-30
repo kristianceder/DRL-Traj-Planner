@@ -84,7 +84,8 @@ def render_rollout(eval_env, model, config, n_steps=2_000, is_torchrl=True):
             next_state = eval_env.step(action)
 
             steps += 1
-            ep_rwd += next_state['next']['reward']
+            # ep_rwd += next_state['next']['reward']
+            ep_rwd += next_state['next']['reward_tensor'].sum()
 
             # Only render every third frame for performance (matplotlib is slow)
             if i % 3 == 0 and i > 0:

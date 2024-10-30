@@ -46,7 +46,7 @@ class TrajectoryPlannerEnvironmentImgsReward3(TrajectoryPlannerEnvironment):
                 CollisionReward(collision_reward_factor),
                 NormSpeedReward(w1, reference_speed, tau=0.942),
                 NormAccelerationReward(w2),
-                # NormGoalDistanceReward(w3),
+                NormGoalDistanceReward(w3),
                 PathProgressReward(w3),
                 NormCrossTrackReward(w4),
                 NormObstacleDistanceReward(w5),

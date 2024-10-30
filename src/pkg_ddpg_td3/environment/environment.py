@@ -63,7 +63,8 @@ class TrajectoryPlannerEnvironment(gym.Env):
         reward_term_vocab = {
             "g": 'ReachGoalReward',
             "s": 'NormSpeedReward',
-            "d": 'PathProgressReward',#'NormGoalDistanceReward',
+            "p": 'PathProgressReward',
+            "d": 'NormGoalDistanceReward',
             "c": 'CollisionReward',
             "a": 'NormAccelerationReward',
             "x": 'NormCrossTrackReward',
@@ -73,14 +74,14 @@ class TrajectoryPlannerEnvironment(gym.Env):
                                  'NormAccelerationReward', 'NormCrossTrackReward']
 
         self.base_keys = [reward_term_vocab[k] for k in list(self.config.sac.curriculum.base_reward_keys)]
-        self.constraint_keys = [reward_term_vocab[k]
+        self.all_rwd_keys = [reward_term_vocab[k]
                            for k in list(self.config.sac.curriculum.all_reward_keys)
                         #    if k not in list(self.config.sac.curriculum.base_reward_keys)
                            ]
         
-        # assert len(self.base_keys) + len(self.constraint_keys) == self.reward_length, "Reward length mismatch"
+        # assert len(self.base_keys) + len(self.all_rwd_keys) == self.reward_length, "Reward length mismatch"
 
-        logging.info(f"Base reward keys: {self.base_keys}, Constraint reward keys: {self.constraint_keys}")
+        logging.info(f"Base reward keys: {self.base_keys}, all reward keys: {self.all_rwd_keys}")
 
         for component in self.components:
             component.env = self
@@ -247,21 +248,22 @@ class TrajectoryPlannerEnvironment(gym.Env):
         c_dict = {c.__class__.__name__: c.step(action) for c in self.components}
         rwd_dict = {k: v for k, v in c_dict.items() if 'reward' in k.lower()}
 
-
         base_reward = sum([rwd_dict[k] for k in self.base_keys])
 
-        # rwd_order = self.base_keys + self.constraint_keys
-        all_rewards = [rwd_dict[k] for k in self.constraint_keys]
-        # reward_vec = torch.tensor(all_rewards, dtype=torch.float32)
+        # rwd_order = self.base_keys + self.all_rwd_keys
+        all_rewards = [rwd_dict[k] for k in self.all_rwd_keys]
+        reward_vec = torch.tensor(all_rewards, dtype=torch.float32)
         full_reward = sum(all_rewards)
 
         
         # make sure this is always the same scale
-        desired_scale = 0.1
+        desired_scale = 0.1 # TODO move this to config
         dense_terms = rwd_dict['NormSpeedReward'] / self.config.w1 + rwd_dict['NormAccelerationReward'] / self.config.w2 + rwd_dict['NormCrossTrackReward'] / self.config.w4
         true_reward = desired_scale * dense_terms + rwd_dict['ReachGoalReward'] + rwd_dict['CollisionReward']
 
         # print(f"True {true_reward:.2f}, Base {base_reward:.2f}, Full {full_reward:.2f} acc {rwd_dict['NormAccelerationReward']:.2f}, cross {rwd_dict['NormCrossTrackReward']:.2f}, speed {rwd_dict['NormSpeedReward']:.2f}, path {rwd_dict['PathProgressReward']:.2f}")
+
+        # print(f"Path progress {rwd_dict['PathProgressReward']:.2f}")
 
         if self.use_wandb:
             log_stats = {f'rewards/{n}': val for n, val in rwd_dict.items()}
@@ -271,7 +273,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
             wandb.log(log_stats)
 
         terminated = self.update_termination()
-        info = self.get_info(full_reward, base_reward, true_reward=true_reward) #reward_vec, 
+        info = self.get_info(full_reward, base_reward, true_reward=true_reward, reward_vec=reward_vec)
 
         if GYM_0_22_X:
             return observation, true_reward, terminated, False, info

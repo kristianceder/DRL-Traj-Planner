@@ -232,7 +232,6 @@ class AlgoBase(ABC):
         obs_size = None
         action_size = None
 
-
         img_mode = "pixels" in self.train_env.observation_spec.keys()
     
         if img_mode:
@@ -471,12 +470,12 @@ class AlgoBase(ABC):
                     # compute the reward during training as it depends on w which changes
                     # this way we can keep the whole replay buffer when changing reward weights
 
-                    # sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+                    sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
                     # new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
-                    if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
-                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
-                    else:
-                        sampled_tensordict["next", "reward"] = sampled_tensordict["next", "base_reward"]
+                    # if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
+                    #     sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
+                    # else:
+                    #     sampled_tensordict["next", "reward"] = sampled_tensordict["next", "base_reward"]
 
                     #     og_reward = sampled_tensordict["next", "reward"]
 
@@ -518,7 +517,7 @@ class AlgoBase(ABC):
                         self.replay_buffer.update_tensordict_priority(sampled_tensordict)
 
             training_time = time.time() - training_start
-            episode_end = tensordict["next", "done"]
+            episode_end = tensordict["next", "done"]                    
             episode_rewards = tensordict["next", "episode_reward"][episode_end]
             episode_success = tensordict["next", "success"][episode_end]
             episode_collided = tensordict["next", "collided"][episode_end]
@@ -526,22 +525,37 @@ class AlgoBase(ABC):
             # Logging
             metrics_to_log = {}
             if len(episode_rewards) > 0:
+                # calculate train episode reward
+                last_done = 0
+                train_episode_rewards = []
+                if episode_end.any():
+                    for i, done_idx in enumerate(torch.argwhere(episode_end)[0]):
+                        ep_reward_tensor = tensordict["next", "reward_tensor"][last_done:done_idx,:]
+                        ep_train_reward = self.compute_reward(ep_reward_tensor)
+                        if ep_train_reward.shape[0] > 1:
+                            train_episode_rewards.append(ep_train_reward.sum().item())
+                        last_done = done_idx
+
+                # logging
                 episode_length = tensordict["next", "step_count"][episode_end]
-                metrics_to_log['train/w'] = self.w.sum().item()
-                metrics_to_log["train/episode_reward"] = episode_rewards.mean().item()
+                for i, _w in enumerate(self.w):
+                    metrics_to_log[f'train/w{i}'] = _w.item()
+                metrics_to_log["train/true_episode_reward"] = episode_rewards.mean().item()
+                metrics_to_log["train/episode_reward"] = sum(train_episode_rewards) / len(train_episode_rewards) if len(train_episode_rewards) > 0 else 0
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
-                if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
-                    train_reward = tensordict["next", "full_reward"]
-                else:
-                    train_reward = tensordict["next", "base_reward"]
+                # if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
+                #     train_reward = tensordict["next", "full_reward"]
+                # else:
+                #     train_reward = tensordict["next", "base_reward"]
+                train_reward = self.compute_reward(tensordict["next", "reward_tensor"])
 
                 metrics_to_log["train/reward"] = train_reward.mean().item() # this is a bit weird but should do the job
                 metrics_to_log["train/full_reward"] = tensordict["next", "full_reward"].mean().item()
                 metrics_to_log["train/base_reward"] = tensordict["next", "base_reward"].mean().item()
                 metrics_to_log["train/true_reward"] = tensordict["next", "true_reward"].mean().item()
-                # TODO log all rewards in reward_vector
+                # TODO log all rewards in reward_tensor
                 metrics_to_log["train/episode_length"] = episode_length.sum().item() / len(
                     episode_length
                 )
@@ -625,12 +639,14 @@ class AlgoBase(ABC):
             eval_metrics["eval/kl"] = kl
             eval_metrics["eval/episode_reward"] = eval_episode_rewards.mean().item()
             eval_metrics["eval/reward"] = eval_reward
+            eval_metrics["eval/train_reward"] = self.compute_reward(eval_rollout["next", "reward_tensor"]).mean().item()
             eval_metrics["eval/full_reward"] = eval_rollout["next", "full_reward"].mean().item()
             eval_metrics["eval/base_reward"] = eval_rollout["next", "base_reward"].mean().item()
             eval_metrics["eval/true_reward"] = eval_rollout["next", "true_reward"].mean().item()
             eval_metrics["eval/time"] = eval_time
             eval_metrics["eval/n_steps"] = eval_rollout["next", "reward"].shape[0]
-        
+            for i, _w in enumerate(self.w):
+                eval_metrics[f'eval/w{i}'] = _w.item()
         if return_means:
             return eval_metrics
         else:
