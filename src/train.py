@@ -16,15 +16,8 @@ from pathlib import Path
 import wandb
 import torch
 import numpy as np
-from pkg_ddpg_td3.utils.map import (
-    generate_map_corridor,
-    generate_map_dynamic,
-    generate_map_mpc,
-    generate_map_dynamic_convex_obstacle,
-    generate_map_eval,
-    generate_map_static_nonconvex_obstacle,
-)
-from pkg_ddpg_td3.environment import MapDescription
+from pkg_map.utils import get_map
+from pkg_ddpg_td3.utils.map import generate_map_eval
 from pkg_torchrl.env import make_env
 from pkg_torchrl.sac import SAC
 from pkg_torchrl.ppo import PPO
@@ -34,24 +27,6 @@ from pkg_torchrl.ddpg import DDPG
 from configs import BaseConfig
 
 logging.basicConfig(level=logging.INFO)
-
-
-def generate_map_random() -> MapDescription:
-    return random.choice([generate_map_dynamic, generate_map_corridor, generate_map_dynamic_convex_obstacle, generate_map_mpc()])()
-
-
-def get_map(map_key):
-    if map_key == 'corridor':
-        generate_map = generate_map_corridor
-    elif map_key == 'dynamic_convex_obstacle':
-        generate_map = generate_map_dynamic_convex_obstacle
-    elif map_key == 'static_nonconvex_obstacle':
-        generate_map = generate_map_static_nonconvex_obstacle
-    elif map_key == 'random':
-        generate_map = generate_map_random
-    else:
-        logging.error(f'Could not find map key {map_key}')
-    return generate_map
 
 
 def run():

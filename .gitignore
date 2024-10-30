@@ -6,9 +6,11 @@
 *.avi
 .vscode/
 **/mpc_solver/
+.DS_Store
 
 runs/
 wandb/
 .idea/
+Model/cr_experiment
 Model/testing
 lightning_logs/

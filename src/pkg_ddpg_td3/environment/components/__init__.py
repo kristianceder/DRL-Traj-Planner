@@ -17,7 +17,6 @@ from .image_observation import ImageObservation
 from .speed_reward import SpeedReward
 from .path_progress_reward import PathProgressReward
 from .excessive_speed_reward import ExcessiveSpeedReward
-from .excessive_speed_reward import ExcessiveSpeedReward
 from .acceleration_reward import AccelerationReward
 from .angular_acceleration_reward import AngularAccelerationReward
 from .jerk_reward import JerkReward
@@ -25,8 +24,6 @@ from .angular_jerk_reward import AngularJerkReward
 from .obstacle_distance_reward import NormObstacleDistanceReward
 from .goal_position_observation import GoalPositionObservation
 from .robot_position_observation import RobotPositionObservation
-from .reward_collision_binary import BinaryCollisionReward
-from .pos_excessive_speed_reward import PosExcessiveSpeedReward
 from .norm_speed_reward import NormSpeedReward
 from .norm_acceleration_reward import NormAccelerationReward
 from .norm_goal_distance_reward import NormGoalDistanceReward
@@ -59,8 +56,6 @@ __all__ = [
     'NormObstacleDistanceReward',
     'GoalPositionObservation',
     'RobotPositionObservation',
-    'BinaryCollisionReward',
-    'PosExcessiveSpeedReward',
     'NormSpeedReward',
     'NormAccelerationReward',
     'NormGoalDistanceReward',
