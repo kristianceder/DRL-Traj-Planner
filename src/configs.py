@@ -3,7 +3,7 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    steps_stage_1: int = 200_000
+    steps_stage_1: int = 25_000
 
     reset_n_critic_layers: Optional[int] = None
     reset_n_actor_layers: Optional[int] = None
@@ -11,9 +11,9 @@ class CurriculumConfig(BaseModel):
     reset_frames: bool = False
     num_updates_after_update: int = 25_000
 
-    # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    base_reward_keys: str = "gds" #"gds"
-    all_reward_keys: str = "gdcsax" #"gdcsax"
+    # "g": ReachGoal, "s": Speed, "d": PathProgress, "c": Collision, "a": Acceleration, "x": CrossTrack
+    base_reward_keys: str = "gds"
+    all_reward_keys: str = "gdcsax"
 
 
 class RLConfig(BaseModel):
@@ -25,7 +25,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 1_000_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -134,15 +134,16 @@ class PretrainConfig(BaseModel):
 class BaseConfig(BaseModel):
     # v0 is original rewards, v1 is minimal, v2 multiply, v3 sum, v4 curriculum
     # env 1 is original observations, 3 is updated
-    # env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
-    env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
-    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step
-    map_key: str = "random"
+    env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
+    # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
+    reward_mode: Optional[str] = "sum"  # vals: sum, curriculum_step
+    map_key: str = "dynamic_convex_obstacle"
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
-    device: str = "cuda"
+    device: str = "cpu"
     use_vec_norm: bool = False
     n_envs: int = 1
+    use_wandb: bool = True
 
     w1: float = 0.1  # speed
     w2: float = 0.1  # acceleration

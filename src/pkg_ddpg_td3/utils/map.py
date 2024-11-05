@@ -177,17 +177,17 @@ def generate_map_dynamic_convex_obstacle() -> MapDescription:
     obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
     
     x = 20. + random.uniform(0,5 )
-    y = random.choice([15, 5])
+    y_2 = random.choice([15, 5])
     w = 4.
     h = 10.
     x0 = x - w / 2
-    y0 = y - h / 2
+    y0 = y_2 - h / 2
     obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
 
     x = 25.
-    y = 3.
+    y = 11 if y_2 == 5 else 2
     x2 = 22.
-    y2 = 10.
+    y2 = y + 5.
     rx = .5
     ry = 2.
     # freq = 0.0000001
@@ -197,15 +197,80 @@ def generate_map_dynamic_convex_obstacle() -> MapDescription:
 
 
     x = 30.
-    y = 4.
+    y = 4. if y_2 == 15 else 9.
     x2 = 22.
-    y2 = 11.
+    y2 = y+7.
     freq = 0.000000001
     # freq = random.uniform(0.1, 0.3)
     angle = -math.pi / 2# * (3 / 4)
     obstacles.append(Obstacle.create_non_convex_u_shape((x,y), (x2,y2), freq, angle, use_random=False))
     
     goal = Goal((35, random.uniform(5, 15)))
+
+    return robot, boundary, obstacles, goal
+
+
+def generate_map_train_1() -> MapDescription:
+    """
+    Generates a randomized map with many dynamic obstalces
+    """
+    x_start = 2 + random.uniform(1, 3)
+    y_start = random.uniform(3, 17)
+
+    init_state = np.array([x_start, y_start, random.uniform(0, 2*math.pi), 0, 0])
+    robot = MobileRobot(init_state)
+    boundary = Boundary([(0, 0), (40, 0), (40, 20), (0, 20)])
+    obstacles = []
+
+    x = random.uniform(8, 15)
+    y = random.uniform(4, 16)
+    w = random.uniform(3, 4)
+    h = random.uniform(3, 10)
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+    
+    x = random.uniform(20, 27)
+    y = random.uniform(5, 15)
+    w = random.uniform(3, 6)
+    h = random.uniform(8, 14)
+    x0 = x - w / 2
+    y0 = y - h / 2
+    obstacles.append(Obstacle.create_mpc_static([(x0, y0), (x0 + w, y0), (x0 + w, y0 + h), (x0, y0 + h)]))
+
+    x = random.uniform(20, 30)
+    y = random.uniform(1,5)
+    x2 = random.uniform(20, 30)
+    y2 = random.uniform(10, 19)
+    rx = .5
+    ry = random.uniform(1.5, 3.5)
+    freq = random.uniform(0.1, 0.4)
+    angle = math.pi
+    obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
+
+    goal_y = random.uniform(2, 18)
+
+    x = random.uniform(12, 18)
+    y = y_start + random.uniform(-1, 1)
+    x2 = x + random.uniform(1, 6)
+    y2 = y
+    rx = random.uniform(.5, 1.0)
+    ry = random.uniform(.5, 2.)
+    freq = random.uniform(0.1, 0.4)
+    angle = math.pi
+    obstacles.append(Obstacle.create_mpc_dynamic((x, y), (x2, y2), freq, rx, ry, angle, random=False))
+
+    x = 30. + random.uniform(-1, 1)
+    y = goal_y - .2 * (goal_y-10)
+    y += random.uniform(-1, 1)
+    x2 = x
+    y2 = y
+    freq = 0.1
+    # freq = random.uniform(0.1, 0.3)
+    angle = -math.pi / 2
+    obstacles.append(Obstacle.create_non_convex_u_shape((x,y), (x2,y2), freq, angle, use_random=True))
+    
+    goal = Goal((37, goal_y))
 
     return robot, boundary, obstacles, goal
 
