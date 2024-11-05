@@ -6,7 +6,7 @@ from pkg_ddpg_td3.utils.map import generate_map_dynamic, generate_map_corridor, 
 # from pkg_ddpg_td3.utils.map_simple import  generate_simple_map_easy, generate_simple_map_static, generate_simple_map_nonconvex, generate_simple_map_dynamic,generate_simple_map_nonconvex_static, generate_simple_map_static1
 from pkg_ddpg_td3.utils.map_simple import *
 from pkg_ddpg_td3.utils.map_multi_robot import generate_map_multi_robot1, generate_map_multi_robot2, generate_map_multi_robot3, generate_map_multi_robot3_eval
-from main_pre_continous import generate_map
+from helper_main_continous import generate_map
 
 variant_list = [
         {

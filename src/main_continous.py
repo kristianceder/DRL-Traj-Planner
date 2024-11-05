@@ -22,7 +22,7 @@ from interface_mpc import InterfaceMpc
 from util.mpc_config import Configurator
 
 ### Helper
-from main_pre_continous import generate_map, get_geometric_map, HintSwitcher, Metrics
+from helper_main_continous import generate_map, get_geometric_map, HintSwitcher, Metrics
 from pkg_ddpg_td3.utils.map import test_scene_1_dict, test_scene_2_dict
 #from pkg_dqn.utils.map import test_scene_1_dict, test_scene_2_dict
 
@@ -321,30 +321,13 @@ if __name__ == '__main__':
     test_scene_1_dict = {1: [1, 2, 3], 2: [1, 2, 3, 4], 3: [1, 2, 3, 4], 4: [1, 2]}
     test_scene_2_dict = {1: [1, 2, 3]}
 
-    rl_index: 0 = image, 1 = ray
+
     decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     """
     scene_option = (1, 3, 2)
 
     time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=False, scene_option=scene_option, save_num=1) # Eval MPC using main.py
-    time_list_lid     = main(rl_index=1,    decision_mode=2,  to_plot=True, scene_option=scene_option, save_num=2)
     time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=3)
-    time_list_hyb_lid = main(rl_index=1,    decision_mode=4,  to_plot=True, scene_option=scene_option, save_num=4)
     time_list_hyb_img = main(rl_index=0,    decision_mode=3,  to_plot=True, scene_option=scene_option, save_num=5)
 
-    print(f"Average time: \nDDPG {np.mean(time_list_lid)}ms; \nMPC {np.mean(time_list_mpc)}ms; \nHYB {np.mean(time_list_hyb_lid)}ms; \n")
-
-    fig, axes = plt.subplots(1,2)
-
-    bin_list = np.arange(0, 150, 10)
-    axes[0].hist(time_list_lid, bins=bin_list, color='r', alpha=0.5, label='DDPG')
-    axes[0].hist(time_list_mpc, bins=bin_list, color='b', alpha=0.5, label='MPC')
-    axes[0].hist(time_list_hyb_lid, bins=bin_list, color='g', alpha=0.5, label='HYB')
-    axes[0].legend()
-
-    axes[1].plot(time_list_lid, color='r', ls='-', marker='x', label='DDPG')
-    axes[1].plot(time_list_mpc, color='b', ls='-', marker='x', label='MPC')
-    axes[1].plot(time_list_hyb_lid, color='g', ls='-', marker='x', label='HYB')
-
-    plt.show()
     input('Press enter to exit...')
