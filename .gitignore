@@ -4,6 +4,7 @@
 *.png
 *.sif
 *.avi
+.DS_Store
 .vscode/
 **/mpc_solver/
 
@@ -11,4 +12,5 @@ runs/
 wandb/
 .idea/
 Model/testing
+Model/cr_experiment
 lightning_logs/
