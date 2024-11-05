@@ -9,7 +9,7 @@ import numpy as np
 from pkg_map.utils import get_map
 from pkg_torchrl.env import make_env
 from pkg_torchrl.sac import SAC
-from pkg_torchrl.meta_sac import MetaSAC
+from pkg_torchrl.meta.sac import MetaSAC
 
 from configs import BaseConfig
 
@@ -50,8 +50,8 @@ def main():
     wandb.config["map"] = generate_map.__name__
 
     # load meta algo
-    meta_algo = MetaSAC(config.sac) # TODO have separate meta config
-    meta_algo.train(model, config)
+    meta_algo = MetaSAC(config.meta)
+    meta_algo.train(model)
     
     model.save(f"{path}/final_model.pth")
     logging.info(f"Final model saved to {path}")

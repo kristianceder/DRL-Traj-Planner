@@ -124,6 +124,13 @@ class PPOConfig(RLConfig):
     # batch_size: int = 64
 
 
+class MetaConfig(SACConfig):
+    n_phases: int = 2
+    n_iters: int = 2
+    init_env_steps: int = 1#10
+    prioritize: bool = False
+
+
 class PretrainConfig(BaseModel):
     lr: float = 3e-4
     bs: int = 128
@@ -157,11 +164,12 @@ class BaseConfig(BaseModel):
     ppo: PPOConfig = PPOConfig()
     td3: TD3Config = TD3Config()
     ddpg: DDPGConfig = DDPGConfig()
+    meta: MetaConfig = MetaConfig()
 
     def __init__(self, **data):
         super().__init__(**data)
         # Automatically propagate common attributes to all algorithm configurations
-        for algo_config in [self.sac, self.ppo, self.td3, self.ddpg]:
+        for algo_config in [self.sac, self.ppo, self.td3, self.ddpg, self.meta]:
             algo_config.seed = self.seed
             algo_config.device = self.device
             algo_config.collector_device = self.collector_device

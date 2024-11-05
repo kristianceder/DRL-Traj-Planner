@@ -235,7 +235,6 @@ class AlgoBase(ABC):
         img_mode = "pixels" in self.train_env.observation_spec.keys()
     
         if img_mode:
-            # TODO should have separate encoder for value and policy for off-policy algos
             # CNN from DQN Nature paper:
             #     Mnih, Volodymyr, et al.
             #     "Human-level control through deep reinforcement learning."
@@ -283,27 +282,6 @@ class AlgoBase(ABC):
                 net(td)
         del td
         self.train_env.close()
-
-    # def set_curriculum_stage(self, stage: int):
-        # reset_n_critic_layers = self.config.curriculum.reset_n_critic_layers
-        # reset_n_actor_layers = self.config.curriculum.reset_n_actor_layers
-
-        # self.train_env.unwrapped.set_curriculum_stage(stage)
-        # self.eval_env.unwrapped.set_curriculum_stage(stage)
-
-        # if reset_n_actor_layers is not None:
-        #     reset_actor(self.model["policy"], reset_n_actor_layers)
-
-        # if reset_n_critic_layers is not None:
-        #     reset_critic(self.model["value"], reset_n_critic_layers)
-
-        # if self.config.curriculum.reset_buffer:
-        #     self.replay_buffer.empty()
-        #     print("Emptied replay buffer")
-        # print(f"Curriculum stage: {stage}")
-
-        # self.curriculum_stage = stage
-        # self.updated_curriculum = True
 
     def _maybe_update_curriculum(self, collected_frames):
         if not self.config.reward_mode == "curriculum_step":
@@ -363,10 +341,8 @@ class AlgoBase(ABC):
         # computing the reward solely depends on self.w
         assert self.w.shape[-1] == reward_tensor.shape[-1], f"w shape {self.w.shape} != reward_tensor shape {reward_tensor.shape}"
         if not self.w.device == self.device:
-            # print("Moving w to device")
             self.w = self.w.to(self.device)
         if not reward_tensor.device == self.device:
-            # print("Moving reward_tensor to device")
             reward_tensor = reward_tensor.to(self.device)
 
         rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
@@ -376,7 +352,6 @@ class AlgoBase(ABC):
         # Create off-policy collector
 
         if self.deterministic:
-            # TODO do want to add noise to TD3 as well?
             collector_policy = TensorDictSequential(
                     self.model["policy"],
                     AdditiveGaussianModule(
@@ -430,14 +405,6 @@ class AlgoBase(ABC):
             collected_frames += current_frames
             all_collected_frames += current_frames
 
-            # if not self.pretrained_actor_is_reset \
-            #         and collected_frames >= self.config.init_random_frames \
-            #         and self.is_pretrained \
-            #         and self.config.reset_pretrained_actor:
-            #     print('Resetting actor')
-            #     reset_actor(self.model['policy'], 20)
-            #     self.pretrained_actor_is_reset = True
-
             # Optimization steps
             training_start = time.time()
             if collected_frames >= self.config.init_env_steps:
@@ -469,28 +436,7 @@ class AlgoBase(ABC):
 
                     # compute the reward during training as it depends on w which changes
                     # this way we can keep the whole replay buffer when changing reward weights
-
                     sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
-                    # new_reward = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
-                    # if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
-                    #     sampled_tensordict["next", "reward"] = sampled_tensordict["next", "full_reward"]
-                    # else:
-                    #     sampled_tensordict["next", "reward"] = sampled_tensordict["next", "base_reward"]
-
-                    #     og_reward = sampled_tensordict["next", "reward"]
-
-                    # sampled_tensordict["next", "reward"] = og_reward
-                    # # sampled_tensordict["next", "reward"] = new_reward
-                    # abs_err = (new_reward - og_reward)
-                    # abs_err_map = abs_err.abs() > 1e-7
-                    # if abs_err_map.any():
-                    #     err_rwd_new = new_reward[abs_err_map]
-                    #     err_rwd_old = og_reward[abs_err_map]
-
-                    #     print(err_rwd_new)
-                    #     print(err_rwd_old)
-                    #     print(abs_err[abs_err_map])
-                    #     print("----")
 
                     # Compute loss
                     loss_td = self.loss_module(sampled_tensordict)
@@ -545,10 +491,6 @@ class AlgoBase(ABC):
                 last_success_rate = episode_success.float().mean().item()
                 metrics_to_log["train/episode_success"] = last_success_rate
                 metrics_to_log["train/episode_collided"] = episode_collided.float().mean().item()
-                # if self.curriculum_stage > 0 or "curriculum" not in self.config.reward_mode:
-                #     train_reward = tensordict["next", "full_reward"]
-                # else:
-                #     train_reward = tensordict["next", "base_reward"]
                 train_reward = self.compute_reward(tensordict["next", "reward_tensor"])
 
                 metrics_to_log["train/reward"] = train_reward.mean().item() # this is a bit weird but should do the job
@@ -653,7 +595,7 @@ class AlgoBase(ABC):
             val_loss = self.loss_module(eval_rollout)
             r_hat = self.compute_reward(eval_rollout["next", "reward_tensor"])
             r = eval_rollout["next", "full_reward"]
-            return val_loss, r_hat, r, eval_metrics
+            return eval_rollout#val_loss, r_hat, r, eval_metrics
 
     def save(self, path):
         torch.save(self.model.state_dict(), path)
