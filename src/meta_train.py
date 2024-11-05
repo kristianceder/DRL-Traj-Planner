@@ -52,7 +52,7 @@ def main():
     # load meta algo
     meta_algo = MetaSAC(config.meta)
     meta_algo.train(model)
-    
+
     model.save(f"{path}/final_model.pth")
     logging.info(f"Final model saved to {path}")
 

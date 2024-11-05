@@ -1,6 +1,7 @@
 import logging
 from tqdm import tqdm
 
+import wandb
 import torch
 import torch.nn as nn
 
@@ -8,18 +9,17 @@ from tensordict import TensorDict
 from tensordict.nn import TensorDictModule
 from torch.distributions import Categorical, Bernoulli
 from torchrl.data.tensor_specs import OneHotDiscreteTensorSpec, MultiDiscreteTensorSpec
-from torchrl.modules.distributions import NormalParamExtractor, OneHotCategorical, MaskedCategorical
+# from torchrl.modules.distributions import NormalParamExtractor, OneHotCategorical, MaskedCategorical
 from torchrl.modules.tensordict_module.actors import ProbabilisticActor
-from torchrl.modules import MLP
+# from torchrl.modules import MLP
 from torchrl.modules.tensordict_module.common import SafeModule
 from torchrl.objectives.sac import DiscreteSACLoss
 from torchrl.objectives import SoftUpdate
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 
 from pkg_torchrl.utils import make_replay_buffer, get_activation
-from pkg_torchrl.base import build_critic
 from pkg_torchrl.sac import SAC
-from pkg_torchrl.meta.networks import MetaNetwork
+from pkg_torchrl.meta.networks import MetaNetwork, MetaEncoder
 
 
 import torch
@@ -46,14 +46,17 @@ class MetaSAC(SAC):
         in_keys_actor = ["meta_observation", "reward_tensor", "w"]
         in_keys_value = ["meta_observation", "reward_tensor", "w"]
 
+        # TODO get this from env or config
         action_size = 4
-        obs_size = 6+4
+        obs_size = 178
 
         action_spec = MultiDiscreteTensorSpec([2]*action_size)#OneHotDiscreteTensorSpec(action_size)
         action_size = action_spec.shape[-1]
 
-        policy_net = MetaNetwork(observation_dim=10, reward_dim=4)
-        qvalue_net = MetaNetwork(observation_dim=10, reward_dim=4)
+        encoder = MetaEncoder(observation_dim=obs_size, reward_dim=4)
+
+        policy_net = MetaNetwork(encoder=encoder, reward_dim=4)
+        qvalue_net = MetaNetwork(encoder=encoder, reward_dim=4)
 
         actor = build_meta_actor(policy_net, action_spec, in_keys_actor)
 
@@ -135,17 +138,20 @@ class MetaSAC(SAC):
                 logging.info(f"Phase {p_idx}")
                 logging.info(f"Reward weights: {reward_w}")
 
-                # TODO train for x iterations
+                # train policy
                 n_train_frames = 1_000
                 model.config.total_frames = n_train_frames
-                # model.train()
-                # eval_stats = model.evaluate(1_000, return_means=False)
+                model.train(use_wandb=False)
+                base_eval_td = model.evaluate(1_000, return_means=False)
+                # print(base_eval_td)
+                r = base_eval_td["next", "reward"].mean().unsqueeze(0)
+
                 eval_td = TensorDict({
-                    "meta_observation": torch.rand(1, 1000, 10),
-                    "reward_tensor": torch.rand(1, 1000, 4),
-                    "w": torch.rand(1, 4),
-                    "meta_action": torch.rand(1, 1000, 4),
-                    "reward": torch.rand(1, 1),
+                    "meta_observation": base_eval_td["observation"].unsqueeze(0),
+                    "reward_tensor": base_eval_td["reward_tensor"].unsqueeze(0),
+                    "w": reward_w.unsqueeze(0),
+                    # "meta_action": torch.rand(1, 1000, 4),
+                    "reward": r.unsqueeze(0),
                 }, batch_size=[1])
 
                 # append buffer
@@ -159,7 +165,7 @@ class MetaSAC(SAC):
                     data["next", "done"] = term_func(1, 1, dtype=torch.bool)
                     data["next", "terminated"] = term_func(1, 1, dtype=torch.bool)
 
-                    print(data)
+                    # print(data)
 
                     self.meta_buffer.extend(data.cpu())
                     collected_frames += 1
@@ -167,14 +173,14 @@ class MetaSAC(SAC):
                 # predict next action
                 with torch.no_grad():
                     out = self.model["policy"](eval_td)
-                meta_action = out["meta_action"]
-                print(meta_action)
+                reward_w = out["meta_action"].squeeze()
+                print(reward_w)
 
                 # save tuple for next iteration
-                model.set_w(meta_action.squeeze())
-                eval_td["meta_action"] = meta_action
+                model.set_w(reward_w)
+                eval_td["meta_action"] = reward_w.unsqueeze(0)
 
-                r = eval_td["reward"].mean().unsqueeze(0)
+                
                 last_td = eval_td
 
                 episode_reward += r
@@ -187,8 +193,8 @@ class MetaSAC(SAC):
                 losses = TensorDict({}, batch_size=[num_updates])
                 for i in range(num_updates):
                     sampled_tensordict = self.meta_buffer.sample()
-                    print("----")
-                    print(sampled_tensordict)
+                    # print("----")
+                    # print(sampled_tensordict)
 
                     if sampled_tensordict.device != self.device:
                         sampled_tensordict = sampled_tensordict.to(
@@ -215,3 +221,5 @@ class MetaSAC(SAC):
             if collected_frames >= self.config.init_env_steps:
                 for k in losses.keys():
                     metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
+
+            wandb.log(metrics_to_log)#, step=all_collected_frames)

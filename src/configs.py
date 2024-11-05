@@ -125,17 +125,17 @@ class PPOConfig(RLConfig):
 
 
 class MetaConfig(SACConfig):
-    n_phases: int = 2
-    n_iters: int = 2
-    init_env_steps: int = 1#10
+    n_phases: int = 50
+    n_iters: int = 50
+    init_env_steps: int = 5#10
     prioritize: bool = False
 
 
-class PretrainConfig(BaseModel):
-    lr: float = 3e-4
-    bs: int = 128
-    epochs: int = 200
-    rollout_steps: int = 10_000
+# class PretrainConfig(BaseModel):
+#     lr: float = 3e-4
+#     bs: int = 128
+#     epochs: int = 200
+#     rollout_steps: int = 10_000
 
 
 class BaseConfig(BaseModel):
@@ -143,7 +143,7 @@ class BaseConfig(BaseModel):
     # env 1 is original observations, 3 is updated
     env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
     # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
-    reward_mode: Optional[str] = "sum"  # vals: sum, curriculum_step
+    reward_mode: Optional[str] = "curriculum_step"  # vals: sum, curriculum_step
     map_key: str = "dynamic_convex_obstacle"
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
@@ -159,7 +159,7 @@ class BaseConfig(BaseModel):
 
     algo: str = "sac"  # choices: ["sac", "ppo", "td3", "ddpg"]
 
-    pretrain: PretrainConfig = PretrainConfig()
+    # pretrain: PretrainConfig = PretrainConfig()
     sac: SACConfig = SACConfig()
     ppo: PPOConfig = PPOConfig()
     td3: TD3Config = TD3Config()
