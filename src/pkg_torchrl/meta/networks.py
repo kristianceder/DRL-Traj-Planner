@@ -49,7 +49,7 @@ class MetaEncoder(nn.Module):
 
 
 class MetaNetwork(nn.Module):
-    def __init__(self, encoder, reward_dim=4, hidden_dim=128):
+    def __init__(self, encoder, reward_dim=4, hidden_dim=128, out_activation=None):
         super(MetaNetwork, self).__init__()
         
         self.encoder = encoder
@@ -62,6 +62,7 @@ class MetaNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, reward_dim)
         )
+        self.out_activation = out_activation
         
     def forward(self, observation, rewards, current_weights):
         """
@@ -76,9 +77,12 @@ class MetaNetwork(nn.Module):
         combined = self.encoder(observation, rewards, current_weights)
         
         # Predict new weights
-        mean = self.fc_combined(combined)
-        
-        return mean
+        out = self.fc_combined(combined)
+
+        if self.out_activation is not None:
+            out = self.out_activation(out)
+
+        return out
 
 
 def prepare_input(observation, rewards, current_weights):

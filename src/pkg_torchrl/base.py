@@ -348,7 +348,7 @@ class AlgoBase(ABC):
         rewards = (self.w * reward_tensor).sum(dim=-1).unsqueeze(-1)
         return rewards
 
-    def train(self, use_wandb=True, env_maker=None):
+    def train(self, use_wandb=True, env_maker=None, init_collected_frames=None, train_frames=None):
         # Create off-policy collector
 
         if self.deterministic:
@@ -371,6 +371,14 @@ class AlgoBase(ABC):
         start_time = time.time()
         collected_frames = 0
         all_collected_frames = 0
+
+        # set initial collected frames if needed, TODO maybe remove this if not needed
+        if init_collected_frames is not None:
+            all_collected_frames = init_collected_frames
+            collected_frames = init_collected_frames
+
+        # TODO set total frames to train if needed
+        # total_frames = train_frames if train_frames is not None else 
         pbar = tqdm.tqdm(total=self.config.total_frames)
         last_success_rate = 0.0
         metrics_to_log = None
@@ -408,12 +416,6 @@ class AlgoBase(ABC):
             # Optimization steps
             training_start = time.time()
             if collected_frames >= self.config.init_env_steps:
-                # print(f"Train {collected_frames} frames")
-                # if self.config.n_reset_layers is not None:
-                #     reset_actor(self.model["policy"], self.config.n_reset_layers)
-                # if self.config.n_reset_layers_critic is not None:
-                #     reset_critic(self.model["value"], self.config.n_reset_layers_critic)
-
                 # train longer after updating curriculum
                 if self.updated_curriculum:
                     temp_num_updates = self.config.curriculum.num_updates_after_update
@@ -592,10 +594,53 @@ class AlgoBase(ABC):
         if return_means:
             return eval_metrics
         else:
-            val_loss = self.loss_module(eval_rollout)
-            r_hat = self.compute_reward(eval_rollout["next", "reward_tensor"])
-            r = eval_rollout["next", "full_reward"]
+            # val_loss = self.loss_module(eval_rollout)
+            # r_hat = self.compute_reward(eval_rollout["next", "reward_tensor"])
+            # r = eval_rollout["next", "full_reward"]
             return eval_rollout#val_loss, r_hat, r, eval_metrics
+
+    def grad_steps(self, num_updates, prioritize=False):
+        losses = TensorDict({}, batch_size=[num_updates])
+        for i in range(num_updates):
+            # Sample from replay buffer
+            sampled_tensordict = self.replay_buffer.sample()
+
+            if sampled_tensordict.device != self.device:
+                sampled_tensordict = sampled_tensordict.to(
+                    self.device#, non_blocking=True
+                )
+            else:
+                sampled_tensordict = sampled_tensordict.clone()
+
+            # compute the reward during training as it depends on w which changes
+            # this way we can keep the whole replay buffer when changing reward weights
+            sampled_tensordict["next", "reward"] = self.compute_reward(sampled_tensordict["next", "reward_tensor"])
+
+            # Compute loss
+            loss_td = self.loss_module(sampled_tensordict)
+
+            # calculate target values if needed
+            if self.target_actor is not None:
+                loss_td['kl_loss'] = self.compute_kl_loss(sampled_tensordict)
+
+
+            loss = self._loss_backward(loss_td)
+            losses[i] = loss
+
+            # Update qnet_target params
+            if self.target_net_updater is not None:
+                self.target_net_updater.step()
+
+            # TODO log losses
+
+            # Update priority
+            if prioritize:
+                loss_key = "loss_critic" if "loss_critic" in loss else "loss_qvalue"
+                sampled_tensordict.set(
+                    loss_key, loss[loss_key] * torch.ones(sampled_tensordict.shape, device=self.device))
+                self.replay_buffer.update_tensordict_priority(sampled_tensordict)
+
+        return losses
 
     def save(self, path):
         torch.save(self.model.state_dict(), path)
