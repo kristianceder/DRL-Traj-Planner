@@ -6,7 +6,7 @@
 
 **Publications:**
 - [2023] [Collision-Free Trajectory Planning of Mobile Robots by Integrating Deep Reinforcement Learning and Model Predictive Control](https://ieeexplore.ieee.org/abstract/document/10260515), *CASE*
-- [2024] Trajectory Planning of Multiple Robots using Vision-Based Continuous Deep Reinforcement Learning and Model Predictive Control, *iROS*
+- [2024] [Trajectory Planning of Multiple Robots using Vision-Based Continuous Deep Reinforcement Learning and Model Predictive Control](https://github.com/kristianceder/DRL-Traj-Planner/blob/main/doc/iros24_official.pdf), *iROS*
 - [2024] [Sample-Efficient Curriculum Reinforcement Learning for Complex Reward Functions](https://arxiv.org/abs/2410.16790), *Preprint*
 
 
