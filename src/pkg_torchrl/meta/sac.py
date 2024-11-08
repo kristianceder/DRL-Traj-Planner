@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from tensordict import TensorDict
-from tensordict.nn import TensorDictModule
+from tensordict.nn import InteractionType, TensorDictModule
 from torch.distributions import Categorical, Bernoulli
 from torchrl.data.tensor_specs import OneHotDiscreteTensorSpec, MultiDiscreteTensorSpec
 # from torchrl.modules.distributions import NormalParamExtractor, OneHotCategorical, MaskedCategorical
@@ -16,6 +16,7 @@ from torchrl.modules.tensordict_module.common import SafeModule
 from torchrl.objectives.sac import DiscreteSACLoss
 from torchrl.objectives import SoftUpdate
 from torchrl.envs.utils import ExplorationType, set_exploration_type
+from torchrl.collectors import SyncDataCollector
 
 from pkg_torchrl.utils import make_replay_buffer, get_activation
 from pkg_torchrl.sac import SAC
@@ -35,6 +36,7 @@ def build_meta_actor(policy_net, action_spec, in_keys):
         out_keys=["meta_action"],
         spec=action_spec,
         distribution_class=Bernoulli,
+        default_interaction_type=InteractionType.RANDOM,
         )#OneHotCategorical)
     return actor
 
@@ -120,7 +122,6 @@ class MetaSAC(SAC):
         reward_w += meta_action
 
     def train(self, lower_model: SAC):
-        max_phases = self.config.n_phases
         n_iters = self.config.n_iters
         collected_meta_iters = 0
 
@@ -136,17 +137,22 @@ class MetaSAC(SAC):
             episode_reward = 0
 
             # get initial random frames
-            # TODO this should probably be a collector
-            tensordict = lower_model.train_env.rollout(
-                        self.config.init_random_frames,
-                        auto_cast_to_device=True,
-                        break_when_any_done=False,
-                    ) 
+            collector = SyncDataCollector(
+                lower_model.train_env,
+                lower_model.model["policy"],
+                init_random_frames=self.config.init_random_frames,
+                frames_per_batch=self.config.frames_per_batch,
+                total_frames=self.config.total_frames,
+                device=self.config.collector_device,
+            )
+            collector_iter = iter(collector)
+            for _ in range(self.config.init_random_frames // self.config.frames_per_batch):
+                tensordict = next(collector_iter)
+                current_frames = tensordict.numel()
+                collected_frames += current_frames
 
             tensordict = tensordict.reshape(-1)
-            current_frames = tensordict.numel()
             lower_model.replay_buffer.extend(tensordict.cpu())
-            collected_frames += current_frames
 
             # build meta state
             last_td = TensorDict({
@@ -155,6 +161,8 @@ class MetaSAC(SAC):
                 "last_meta_action": reward_w.view(1, -1),
             }, batch_size=[1])
             
+            max_phases = self.config.total_frames // self.config.frames_per_batch
+
             # meta episode
             for p_idx in range(max_phases):
                 logging.info(f"Phase {p_idx}")
@@ -172,39 +180,33 @@ class MetaSAC(SAC):
                 losses = lower_model.grad_steps(n_train_frames)
                 # TODO log losses
 
-                ### rollout
+                ### collect data
+                tensordict = next(collector_iter)
 
-                print(lower_model.model["policy"])
-                rollout_steps = 1_000
-                tensordict = lower_model.train_env.rollout(
-                        rollout_steps,
-                        lower_model.model["policy"],
-                        auto_cast_to_device=True,
-                        break_when_any_done=False,
-                    )
                 tensordict = tensordict.reshape(-1)
                 current_frames = tensordict.numel()
-                tensordict = tensordict.clone()
-                # FIXME why does this not work?
                 lower_model.replay_buffer.extend(tensordict.cpu())
                 collected_frames += current_frames
 
                 # only keep final performance as reward
                 if p_idx == max_phases - 1:
                     meta_reward = tensordict["next", "true_reward"].mean().view(1,1)
+                    terminated = torch.ones(1, 1, dtype=torch.bool)
                 else:
                     meta_reward = torch.zeros(1, 1)
+                    terminated = torch.zeros(1, 1, dtype=torch.bool)
 
                 meta_td = TensorDict({
                     "meta_observation": last_td["meta_observation"],
                     "reward_tensor": last_td["reward_tensor"],
                     "last_meta_action": last_td["last_meta_action"],
+                    "meta_action": reward_w.view(1, -1),
                     ("next", "meta_observation"): tensordict["next", "observation"].unsqueeze(0),
                     ("next", "reward_tensor"): tensordict["next", "reward_tensor"].unsqueeze(0),
                     ("next", "last_meta_action"): reward_w.view(1, -1),
                     ("next", "reward"): meta_reward,
                     ("next", "done"): torch.zeros(1, 1, dtype=torch.bool),
-                    ("next", "terminated"): torch.zeros(1, 1, dtype=torch.bool), # FIXME make last entry 1
+                    ("next", "terminated"): terminated,
                 }, batch_size=[1])
 
                 self.meta_buffer.extend(meta_td.cpu())

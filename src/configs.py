@@ -125,9 +125,8 @@ class PPOConfig(RLConfig):
 
 
 class MetaConfig(SACConfig):
-    n_phases: int = 50
     n_iters: int = 1
-    meta_init_env_steps: int = 5#10
+    meta_init_env_steps: int = 5
     meta_prioritize: bool = False
 
 
