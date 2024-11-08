@@ -278,7 +278,6 @@ class AlgoBase(ABC):
             td = self.train_env.reset()
             td = td.to(self.device)
             for k, net in self.model.items():
-                print(k)
                 net(td)
         del td
         self.train_env.close()

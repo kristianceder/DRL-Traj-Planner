@@ -30,6 +30,7 @@ def main():
         tags=["meta_training"],
     )
     config = BaseConfig(**wandb.config)
+    config.reward_mode = "curriculum_step"
     wandb.config.update(config.model_dump())
     set_seed(config)
 
@@ -40,6 +41,7 @@ def main():
 
     # load lower RL algo
     algo_config = getattr(config, config.algo.lower())
+    algo_config.reward_mode = "curriculum_step"  # always have curriculum reward mode
     model = eval(config.algo.upper())(algo_config, train_env, eval_env)
     models_path = Path('../Model/testing')
 

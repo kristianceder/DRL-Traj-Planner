@@ -55,11 +55,10 @@ class MetaSAC(SAC):
         action_spec = MultiDiscreteTensorSpec([2]*action_size)#OneHotDiscreteTensorSpec(action_size)
         action_size = action_spec.shape[-1]
 
-        encoder = MetaEncoder(observation_dim=obs_size, reward_dim=4)
-
-        # policy_net = MetaNetwork(encoder=encoder, reward_dim=4, out_activation=nn.Sigmoid())
-        policy_net = MetaNetwork(encoder=encoder, reward_dim=4)
-        qvalue_net = MetaNetwork(encoder=encoder, reward_dim=4)
+        hidden_dim = config.meta_hidden_dim
+        encoder = MetaEncoder(observation_dim=obs_size, reward_dim=4, hidden_dim=hidden_dim)
+        policy_net = MetaNetwork(encoder=encoder, reward_dim=4, hidden_dim=hidden_dim)
+        qvalue_net = MetaNetwork(encoder=encoder, reward_dim=4, hidden_dim=hidden_dim)
 
         actor = build_meta_actor(policy_net, action_spec, in_keys_actor)
 
@@ -91,9 +90,9 @@ class MetaSAC(SAC):
         self._post_init_optimizer()
     
         self.meta_buffer = make_replay_buffer(
-            batch_size=self.config.batch_size,
-            prioritize=self.config.prioritize,
-            buffer_size=self.config.replay_buffer_size,
+            batch_size=self.config.meta_batch_size,
+            prioritize=self.config.meta_prioritize,
+            buffer_size=self.config.meta_replay_buffer_size,
             scratch_dir=self.config.scratch_dir,
             device="cpu",
             prefetch=self.config.prefetch,
@@ -117,20 +116,16 @@ class MetaSAC(SAC):
             self.loss_module, eps=self.config.target_update_polyak
         )
 
-    def update_w(self, reward_w, meta_action):
-        # TODO logging?
-        reward_w += meta_action
-
     def train(self, lower_model: SAC):
         n_iters = self.config.n_iters
         collected_meta_iters = 0
+        overall_frames = 0
+
+        debug_mode = False
 
         for iter_idx in tqdm(range(n_iters), desc="Training Iterations"):
-            # reward_w = torch.zeros(4)
-            # reward_w[0] = 1
-            # reward_w[1] = 1
-            # NOTE set all weights to 1 for debugging
-            reward_w = torch.ones(4)
+            # initial reward not used
+            reward_w = torch.zeros(4)
             lower_model.set_w(reward_w)
 
             collected_frames = 0
@@ -146,10 +141,12 @@ class MetaSAC(SAC):
                 device=self.config.collector_device,
             )
             collector_iter = iter(collector)
-            for _ in range(self.config.init_random_frames // self.config.frames_per_batch):
+            n_random_iters = self.config.init_random_frames // self.config.frames_per_batch
+            for _ in range(n_random_iters):
                 tensordict = next(collector_iter)
                 current_frames = tensordict.numel()
                 collected_frames += current_frames
+                overall_frames += current_frames
 
             tensordict = tensordict.reshape(-1)
             lower_model.replay_buffer.extend(tensordict.cpu())
@@ -162,23 +159,29 @@ class MetaSAC(SAC):
             }, batch_size=[1])
             
             max_phases = self.config.total_frames // self.config.frames_per_batch
+            # reduce random rollouts from max phases
+            max_phases -= n_random_iters
 
             # meta episode
+            # TODO parallelize this loop to speed up training
             for p_idx in range(max_phases):
                 logging.info(f"Phase {p_idx}")
 
                 ### select w
                 with torch.no_grad():
                     out = self.model["policy"](last_td)
-                # FIXME keep weights at 1 for now for debugging
-                # reward_w = out["meta_action"].squeeze()
-                # model.set_w(reward_w) 
+
+                if debug_mode:
+                    reward_w = torch.ones(4)
+                else:
+                    reward_w = out["meta_action"].squeeze()
+
+                lower_model.set_w(reward_w) 
                 logging.info(f"Reward weights: {reward_w}")
 
                 ### grad steps on policy
                 n_train_frames = 1_000
                 losses = lower_model.grad_steps(n_train_frames)
-                # TODO log losses
 
                 ### collect data
                 tensordict = next(collector_iter)
@@ -187,6 +190,7 @@ class MetaSAC(SAC):
                 current_frames = tensordict.numel()
                 lower_model.replay_buffer.extend(tensordict.cpu())
                 collected_frames += current_frames
+                overall_frames += current_frames
 
                 # only keep final performance as reward
                 if p_idx == max_phases - 1:
@@ -214,10 +218,16 @@ class MetaSAC(SAC):
 
                 r = tensordict["next", "reward"].mean().item()
                 train_metrics_to_log = {
-                    "meta_train/reward": r,
+                    "train/reward": r,
                     "meta_train/true_reward": tensordict["next", "true_reward"].mean().item(),
+                    "meta_train/reward": meta_reward.item(),
                 }
-                wandb.log(train_metrics_to_log, step=collected_frames)
+                for _w in reward_w:
+                    train_metrics_to_log[f"meta_train/w{_w}"] = _w.item()
+                for k, v in losses.items():
+                    train_metrics_to_log[f"train/{k}"] = v.mean().item()
+
+                wandb.log(train_metrics_to_log, step=overall_frames)
                 
                 # last_td = meta_td
                 last_td = TensorDict({
@@ -228,11 +238,9 @@ class MetaSAC(SAC):
                 }, batch_size=[1])
                 episode_reward += r
 
-            ### meta gradients
-            # UTD = 1.0, might want to change to a parameter later
-            num_updates = self.config.n_phases
-
-            # train
+            ### meta gradients, i.e. train meta model
+            # FIXME this should be UTD = 1.0, but is much higher atm
+            num_updates = self.config.total_frames // self.config.frames_per_batch
             if collected_meta_iters >= self.config.meta_init_env_steps:
                 losses = TensorDict({}, batch_size=[num_updates])
                 for i in range(num_updates):
@@ -262,6 +270,6 @@ class MetaSAC(SAC):
             metrics_to_log["meta_train/episode_reward"] = episode_reward
             if collected_meta_iters >= self.config.meta_init_env_steps:
                 for k in losses.keys():
-                    metrics_to_log[f"train/{k}"] = losses.get(k).mean().item()
+                    metrics_to_log[f"meta_train/{k}"] = losses.get(k).mean().item()
 
-            wandb.log(metrics_to_log, step=collected_frames)
+            wandb.log(metrics_to_log, step=overall_frames)

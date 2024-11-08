@@ -125,9 +125,12 @@ class PPOConfig(RLConfig):
 
 
 class MetaConfig(SACConfig):
-    n_iters: int = 1
-    meta_init_env_steps: int = 5
+    n_iters: int = 50
+    meta_init_env_steps: int = 1
     meta_prioritize: bool = False
+    meta_batch_size: int = 64
+    meta_replay_buffer_size: int = 10_000
+    meta_hidden_dim: int = 64
 
 
 class BaseConfig(BaseModel):
