@@ -222,8 +222,8 @@ class MetaSAC(SAC):
                     "meta_train/true_reward": tensordict["next", "true_reward"].mean().item(),
                     "meta_train/reward": meta_reward.item(),
                 }
-                for _w in reward_w:
-                    train_metrics_to_log[f"meta_train/w{_w}"] = _w.item()
+                for w_idx, _w in enumerate(reward_w):
+                    train_metrics_to_log[f"meta_train/w{w_idx}"] = _w.item()
                 for k, v in losses.items():
                     train_metrics_to_log[f"train/{k}"] = v.mean().item()
 
