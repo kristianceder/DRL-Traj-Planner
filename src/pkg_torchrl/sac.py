@@ -76,7 +76,19 @@ class SAC(AlgoBase):
             optim = self.optim[o_key]
             loss.backward()
             params = optim.param_groups[0]["params"]
-            torch.nn.utils.clip_grad_norm_(params, self.config.max_grad_norm)
+
+            # calculate gradient norm
+            total_norm = 0.
+            for param in params:
+                if param.grad is not None:
+                    param_norm = param.grad.data.norm(2)  # L2 norm
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm ** 0.5
+            loss_td["grad_norm_" + o_key] = total_norm
+
+            # clip gradient and step
+            if self.config.max_grad_norm is not None:
+                torch.nn.utils.clip_grad_norm_(params, self.config.max_grad_norm)
             optim.step()
             optim.zero_grad()
 

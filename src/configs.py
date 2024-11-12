@@ -125,13 +125,16 @@ class PPOConfig(RLConfig):
 
 
 class MetaConfig(SACConfig):
-    n_iters: int = 50
+    n_iters: int = 10
     meta_init_env_steps: int = 1
     meta_prioritize: bool = False
     meta_batch_size: int = 25
     meta_replay_buffer_size: int = 10_000
     meta_hidden_dim: int = 64
-    meta_action_ratio: int = 25 # ratio of base repetitions to meta updates
+    meta_action_ratio: int = 30 # ratio of base repetitions to meta updates
+    meta_reward_scale: float = 500.
+    max_grad_norm: Optional[float] = None
+    utd_ratio: float = 2.0
 
 
 class BaseConfig(BaseModel):

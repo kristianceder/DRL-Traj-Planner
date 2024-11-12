@@ -187,7 +187,6 @@ class MetaSAC(SAC):
 
             # reduce random rollouts from max phases
             max_phases = self.config.total_frames // self.config.frames_per_batch
-            max_phases -= n_random_iters
 
             init_time = time()
             if print_time:
@@ -244,10 +243,13 @@ class MetaSAC(SAC):
                         )
 
                     meta_reward = base_eval_td["next", "true_reward"].mean().view(1,1)
+                    meta_reward *= self.config.meta_reward_scale
                     terminated = torch.ones(1, 1, dtype=torch.bool)
+                    done = torch.ones(1, 1, dtype=torch.bool)
                 else:
                     meta_reward = torch.zeros(1, 1)
                     terminated = torch.zeros(1, 1, dtype=torch.bool)
+                    done = torch.zeros(1, 1, dtype=torch.bool)
 
                 meta_td = TensorDict({
                     "meta_observation": last_td["meta_observation"],
@@ -258,7 +260,7 @@ class MetaSAC(SAC):
                     ("next", "reward_tensor"): tensordict["next", "reward_tensor"].unsqueeze(0),
                     ("next", "last_meta_action"): reward_w.view(1, -1),
                     ("next", "reward"): meta_reward,
-                    ("next", "done"): torch.zeros(1, 1, dtype=torch.bool),
+                    ("next", "done"): done,
                     ("next", "terminated"): terminated,
                 }, batch_size=[1])
 
@@ -303,10 +305,8 @@ class MetaSAC(SAC):
 
             ### meta gradients, i.e. train meta model
             # calculate meta env steps taken since last update
-            # this is utd = 1.0, ideally this would be higher
             meta_steps_taken = max_phases
-            num_updates = 1 + meta_steps_taken // self.config.meta_batch_size
-            # num_updates = self.config.total_frames // self.config.frames_per_batch
+            num_updates = 1 + (meta_steps_taken*self.config.utd_ratio) // self.config.meta_batch_size
 
             if collected_meta_iters >= self.config.meta_init_env_steps:
                 losses = TensorDict({}, batch_size=[num_updates])
