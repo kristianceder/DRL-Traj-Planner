@@ -26,7 +26,7 @@ def set_seed(config):
 
 def main():
     _ = wandb.init(
-        project="DRL-Traj-Planner",
+        project="AutoCurriculum",
         tags=["meta_training"],
     )
     config = BaseConfig(**wandb.config)
@@ -42,7 +42,7 @@ def main():
     # load lower RL algo
     algo_config = getattr(config, config.algo.lower())
     algo_config.reward_mode = "curriculum_step"  # always have curriculum reward mode
-    model = eval(config.algo.upper())(algo_config, train_env, eval_env)
+    algo_class = eval(config.algo.upper())
     models_path = Path('../Model/testing')
 
     timestamp = datetime.now().strftime("%y_%m_%d_%H_%M_%S")
@@ -53,10 +53,11 @@ def main():
 
     # load meta algo
     meta_algo = MetaSAC(config.meta)
-    meta_algo.train(model)
+    model = meta_algo.train(algo_class, algo_config, train_env, eval_env)
 
     model.save(f"{path}/final_model.pth")
-    logging.info(f"Final model saved to {path}")
+    meta_algo.save(f"{path}/meta_model.pth")
+    logging.info(f"Models saved to {path}")
 
 
 if __name__ == '__main__':

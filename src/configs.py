@@ -3,7 +3,7 @@ from typing import Optional, List
 
 
 class CurriculumConfig(BaseModel):
-    steps_stage_1: int = 25_000
+    steps_stage_1: int = 100_000
 
     reset_n_critic_layers: Optional[int] = None
     reset_n_actor_layers: Optional[int] = None
@@ -12,20 +12,20 @@ class CurriculumConfig(BaseModel):
     num_updates_after_update: int = 25_000
 
     # "g": ReachGoal, "s": Speed, "d": GoalDistance, "c": Collision, "a": Acceleration, "x": CrossTrack
-    base_reward_keys: str = "gpsc" #"gps"
-    all_reward_keys: str = "gpsc" #"gpcsaxp
+    base_reward_keys: str = "gps" #"gps"
+    all_reward_keys: str = "gps" #"gpcsaxp
 
 
 class RLConfig(BaseModel):
     seed: Optional[int] = None
-    max_eps_steps: int = 300
+    max_eps_steps: int = 250
     reset_pretrained_actor: bool = False
     reward_mode: str = ""  # will be overwritten in post init
 
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 50_000
+    total_frames: int = 30_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -128,9 +128,10 @@ class MetaConfig(SACConfig):
     n_iters: int = 50
     meta_init_env_steps: int = 1
     meta_prioritize: bool = False
-    meta_batch_size: int = 64
+    meta_batch_size: int = 25
     meta_replay_buffer_size: int = 10_000
     meta_hidden_dim: int = 64
+    meta_action_ratio: int = 25 # ratio of base repetitions to meta updates
 
 
 class BaseConfig(BaseModel):
@@ -139,7 +140,7 @@ class BaseConfig(BaseModel):
     env_name: str = "TrajectoryPlannerEnvironmentRaysReward3-v3"
     # env_name: str = "TrajectoryPlannerEnvironmentImgsReward3-v0"
     reward_mode: Optional[str] = "sum"  # vals: sum, curriculum_step
-    map_key: str = "dynamic_convex_obstacle"
+    map_key: str = "train_2"
     seed: int = 10  # 10, 100, 200
     collector_device: str = "cpu"
     device: str = "cpu"#"cuda"

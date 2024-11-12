@@ -9,6 +9,7 @@ from pkg_ddpg_td3.utils.map import (
     generate_map_eval,
     generate_map_static_nonconvex_obstacle,
     generate_map_train_1,
+    generate_map_train_2,
 )
 from pkg_ddpg_td3.environment import MapDescription
 
@@ -27,6 +28,8 @@ def get_map(map_key):
         generate_map = generate_map_eval
     elif map_key == 'train_1':
         generate_map = generate_map_train_1
+    elif map_key == 'train_2':
+        generate_map = generate_map_train_2
     elif map_key == 'random':
         generate_map = generate_map_random
     else:
