@@ -25,7 +25,7 @@ class RLConfig(BaseModel):
     curriculum: CurriculumConfig = CurriculumConfig()
 
     # collector
-    total_frames: int = 30_000
+    total_frames: int = 50_000
     init_random_frames: Optional[int] = 5_000
     frames_per_batch: int = 1_000
     init_env_steps: int = 5_000
@@ -35,10 +35,10 @@ class RLConfig(BaseModel):
 
     # replay
     scratch_dir: None = None
-    prefetch: Optional[int] = 2
+    prefetch: Optional[int] = 5
 
     # nets
-    hidden_sizes: List[int] = [256, 256]
+    hidden_sizes: List[int] = [32, 32]#[256, 256]
     activation: str = "relu"  # choices: "relu", "tanh", "leaky_relu"
     actor_dropout: Optional[float] = None
     critic_dropout: Optional[float] = None
@@ -56,7 +56,7 @@ class RLConfig(BaseModel):
     loss_function: str = "smooth_l1"
 
     # shared parameters
-    replay_buffer_size: int = 800_000 # NOTE this cannot be 1_000_000 cause the server runs out of memory
+    replay_buffer_size: int = 50_000 # NOTE this cannot be 1_000_000 cause the server runs out of memory
     prioritize: bool = False
     batch_size: int = 128
     utd_ratio: float = 1.0
@@ -125,16 +125,23 @@ class PPOConfig(RLConfig):
 
 
 class MetaConfig(SACConfig):
-    n_iters: int = 10
-    meta_init_env_steps: int = 1
+    n_iters: int = 50
+    meta_init_env_steps: int = 5
     meta_prioritize: bool = False
-    meta_batch_size: int = 25
+    meta_batch_size: int = 128
     meta_replay_buffer_size: int = 10_000
-    meta_hidden_dim: int = 64
-    meta_action_ratio: int = 30 # ratio of base repetitions to meta updates
-    meta_reward_scale: float = 500.
+    meta_hidden_dim: int = 32
+    meta_cnn_hidden_dim: int = 16
+    meta_action_ratio: int = 1 # how often to predict a new meta action
+    meta_reward_scale: float = 10.
     max_grad_norm: Optional[float] = None
-    utd_ratio: float = 2.0
+    utd_ratio: float = 4.0
+    alpha_lr: float = 1.0e-4
+    alpha_init: float = 0.1 # lower target entropy
+    scratch_dir: str = "./meta_buffer_scratch"
+    buffer_save_path: Optional[str] = "./meta_buffer_initial"
+    num_updates_after_update: int = 5_000
+    # how often to update the base policy after changing the reward function
 
 
 class BaseConfig(BaseModel):

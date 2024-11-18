@@ -10,8 +10,8 @@ class MetaEncoder(nn.Module):
         self.obs_encoder = nn.Sequential(
             nn.Conv1d(observation_dim, hidden_dim, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, stride=2),
-            nn.ReLU(),
+            # nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, stride=2),
+            # nn.ReLU(),
             nn.AdaptiveAvgPool1d(1)  # Reduce temporal dimension to 1
         )
         
@@ -19,8 +19,8 @@ class MetaEncoder(nn.Module):
         self.reward_encoder = nn.Sequential(
             nn.Conv1d(reward_dim, hidden_dim, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, stride=2),
-            nn.ReLU(),
+            # nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, stride=2),
+            # nn.ReLU(),
             nn.AdaptiveAvgPool1d(1)  # Reduce temporal dimension to 1
         )
         
@@ -49,14 +49,14 @@ class MetaEncoder(nn.Module):
 
 
 class MetaNetwork(nn.Module):
-    def __init__(self, encoder, reward_dim=4, hidden_dim=128, out_activation=None):
+    def __init__(self, encoder, reward_dim=4, hidden_dim=128, cnn_hidden_dim=32, out_activation=None):
         super(MetaNetwork, self).__init__()
         
         self.encoder = encoder
 
         # Combine all encodings and predict new weights
         self.fc_combined = nn.Sequential(
-            nn.Linear(hidden_dim * 3, hidden_dim),
+            nn.Linear(cnn_hidden_dim * 3, hidden_dim),
             # nn.ReLU(),
             # nn.Linear(hidden_dim * 2, hidden_dim),
             nn.ReLU(),

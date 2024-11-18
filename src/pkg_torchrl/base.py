@@ -608,8 +608,8 @@ class AlgoBase(ABC):
                 sampled_tensordict = sampled_tensordict.to(
                     self.device#, non_blocking=True
                 )
-            else:
-                sampled_tensordict = sampled_tensordict.clone()
+            # else:
+            #     sampled_tensordict = sampled_tensordict.clone()
 
             # compute the reward during training as it depends on w which changes
             # this way we can keep the whole replay buffer when changing reward weights
@@ -629,8 +629,6 @@ class AlgoBase(ABC):
             # Update qnet_target params
             if self.target_net_updater is not None:
                 self.target_net_updater.step()
-
-            # TODO log losses
 
             # Update priority
             if prioritize:

@@ -8,11 +8,9 @@ import torch.nn as nn
 
 from tensordict import TensorDict
 from tensordict.nn import InteractionType, TensorDictModule
-from torch.distributions import Categorical, Bernoulli
-from torchrl.data.tensor_specs import OneHotDiscreteTensorSpec, MultiDiscreteTensorSpec
-# from torchrl.modules.distributions import NormalParamExtractor, OneHotCategorical, MaskedCategorical
+from torch.distributions import Bernoulli
+from torchrl.data.tensor_specs import MultiDiscreteTensorSpec
 from torchrl.modules.tensordict_module.actors import ProbabilisticActor
-# from torchrl.modules import MLP
 from torchrl.modules.tensordict_module.common import SafeModule
 from torchrl.objectives.sac import DiscreteSACLoss
 from torchrl.objectives import SoftUpdate
@@ -26,14 +24,12 @@ from pkg_torchrl.meta.networks import MetaNetwork, MetaEncoder
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 # TODO (kilian)
 # - make this fast
 #  - parallelize meta episodes
 #  - torch compile?
-
 
 
 def build_meta_actor(policy_net, action_spec, in_keys):
@@ -65,9 +61,13 @@ class MetaSAC(SAC):
         action_size = action_spec.shape[-1]
 
         hidden_dim = config.meta_hidden_dim
-        encoder = MetaEncoder(observation_dim=obs_size, reward_dim=action_size, hidden_dim=hidden_dim)
-        policy_net = MetaNetwork(encoder=encoder, reward_dim=action_size, hidden_dim=hidden_dim)
-        qvalue_net = MetaNetwork(encoder=encoder, reward_dim=action_size, hidden_dim=hidden_dim)
+        cnn_hidden_dim = config.meta_cnn_hidden_dim
+        encoder = MetaEncoder(observation_dim=obs_size, reward_dim=action_size, hidden_dim=cnn_hidden_dim)
+        policy_net = MetaNetwork(encoder=encoder, reward_dim=action_size,
+                                 hidden_dim=hidden_dim, cnn_hidden_dim=cnn_hidden_dim)
+        qvalue_net = MetaNetwork(encoder=encoder, reward_dim=action_size,
+                                 hidden_dim=hidden_dim, cnn_hidden_dim=cnn_hidden_dim)
+
 
         actor = build_meta_actor(policy_net, action_spec, in_keys_actor)
 
@@ -125,7 +125,7 @@ class MetaSAC(SAC):
             self.loss_module, eps=self.config.target_update_polyak
         )
 
-    def train(self, algo_class, algo_config, train_env, eval_env):
+    def train(self, algo_class: SAC, algo_config, train_env, eval_env):
         n_iters = self.config.n_iters
         collected_meta_iters = 0
         overall_frames = 0
@@ -155,6 +155,7 @@ class MetaSAC(SAC):
                 frames_per_batch=self.config.frames_per_batch,
                 total_frames=self.config.total_frames,
                 device=self.config.collector_device,
+                exploration_type=ExplorationType.RANDOM,
             )
             collector_iter = iter(collector)
             n_random_iters = self.config.init_random_frames // self.config.frames_per_batch
@@ -178,7 +179,7 @@ class MetaSAC(SAC):
             if debug_mode:
                 reward_w = torch.ones(self.action_size)
             else:
-                out = self.predict(last_td)
+                out = self.predict(last_td, deterministic=False)
                 reward_w = out["meta_action"].squeeze()
             lower_model.set_w(reward_w)
             logging.info(f"Reward weights: {reward_w}")
@@ -196,14 +197,14 @@ class MetaSAC(SAC):
             # TODO parallelize this loop to speed up training
             for p_idx in range(n_random_iters, max_phases):
                 phase_start_time = time()
-                logging.info(f"Phase {p_idx}")
+                # logging.info(f"Phase {p_idx}")
 
                 ### select w based on meta policy
                 if p_idx % self.config.meta_action_ratio == 0:
                     if debug_mode:
                         reward_w = torch.ones(self.action_size)
                     else:
-                        out = self.predict(last_td)
+                        out = self.predict(last_td, deterministic=False)
                         reward_w = out["meta_action"].squeeze()
 
                     lower_model.set_w(reward_w)
@@ -212,8 +213,8 @@ class MetaSAC(SAC):
 
                 ### grad steps on policy
                 # take different gradient steps depending if reward was updated
-                n_train_frames = 1_000 if rwd_updated else 1_000
-                logging.info(f"Training base model for {n_train_frames} frames")
+                n_train_frames = self.config.num_updates_after_update if rwd_updated else self.config.frames_per_batch
+                # logging.info(f"Training base model for {n_train_frames} frames")
                 before_grad_time = time()
                 losses = lower_model.grad_steps(n_train_frames)
                 rwd_updated = False
@@ -236,7 +237,7 @@ class MetaSAC(SAC):
                     logging.info("Evaluating final policy")
                     with set_exploration_type(ExplorationType.DETERMINISTIC):
                         base_eval_td = lower_model.eval_env.rollout(
-                            max_steps=3_000,
+                            max_steps=self.config.eval_rollout_steps,
                             policy=lower_model.model["policy"],
                             auto_cast_to_device=True,
                             break_when_any_done=False,
@@ -265,7 +266,6 @@ class MetaSAC(SAC):
                 }, batch_size=[1])
 
                 self.meta_buffer.extend(meta_td.cpu())
-                collected_meta_iters += 1
 
                 r = tensordict["next", "reward"].mean().item()
                 episode_end = tensordict["next", "done"]                    
@@ -288,6 +288,12 @@ class MetaSAC(SAC):
                 for k, v in losses.items():
                     train_metrics_to_log[f"train/{k}"] = v.mean().item()
 
+                phase_end_time = time()
+                phase_dt = phase_end_time - phase_start_time
+                if print_time:
+                    logging.info(f"Phase {p_idx} took {phase_dt:.2f}s")
+                train_metrics_to_log["train/base_phase_time"] = phase_dt
+
                 wandb.log(train_metrics_to_log, step=overall_frames)
                 
                 # last_td = meta_td
@@ -299,16 +305,19 @@ class MetaSAC(SAC):
                 }, batch_size=[1])
                 episode_reward += r
 
-                phase_end_time = time()
-                if print_time:
-                    logging.info(f"Phase {p_idx} took {phase_end_time - phase_start_time:.2f}s")
+
+            collected_meta_iters += 1
 
             ### meta gradients, i.e. train meta model
             # calculate meta env steps taken since last update
             meta_steps_taken = max_phases
             num_updates = 1 + (meta_steps_taken*self.config.utd_ratio) // self.config.meta_batch_size
+            num_updates = int(num_updates)
+
+            meta_grad_start_time = time()
 
             if collected_meta_iters >= self.config.meta_init_env_steps:
+                logging.info(f"Training meta model for {num_updates} updates")
                 losses = TensorDict({}, batch_size=[num_updates])
                 for i in range(num_updates):
                     sampled_tensordict = self.meta_buffer.sample()
@@ -333,7 +342,10 @@ class MetaSAC(SAC):
                             loss_key, loss[loss_key] * torch.ones(sampled_tensordict.shape, device=self.device))
                         self.replay_buffer.update_tensordict_priority(sampled_tensordict)
 
+            meta_grad_dt = time() - meta_grad_start_time
+
             metrics_to_log = {}
+            metrics_to_log["meta_train/grad_time"] = meta_grad_dt
             metrics_to_log["meta_train/episode_reward"] = episode_reward
             if collected_meta_iters >= self.config.meta_init_env_steps:
                 for k in losses.keys():
@@ -345,5 +357,7 @@ class MetaSAC(SAC):
             if print_time:
                 logging.info(f"Training iteration {iter_idx} took {iter_end_time - iter_start_time:.2f}s")
 
+        if self.buffer_save_path is not None:
+            self.meta_buffer.save(self.buffer_save_path)
 
         return lower_model
