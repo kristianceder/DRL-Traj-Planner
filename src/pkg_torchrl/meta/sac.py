@@ -357,7 +357,7 @@ class MetaSAC(SAC):
             if print_time:
                 logging.info(f"Training iteration {iter_idx} took {iter_end_time - iter_start_time:.2f}s")
 
-        if self.buffer_save_path is not None:
-            self.meta_buffer.save(self.buffer_save_path)
+        if self.config.buffer_save_path is not None:
+            self.meta_buffer.dumps(self.config.buffer_save_path+"/meta_buffer.pkl")
 
         return lower_model

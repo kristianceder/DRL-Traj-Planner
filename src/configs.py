@@ -132,15 +132,15 @@ class MetaConfig(SACConfig):
     meta_replay_buffer_size: int = 10_000
     meta_hidden_dim: int = 32
     meta_cnn_hidden_dim: int = 16
-    meta_action_ratio: int = 1 # how often to predict a new meta action
-    meta_reward_scale: float = 10.
+    meta_action_ratio: int = 50 # how often to predict a new meta action
+    meta_reward_scale: float = 500.
     max_grad_norm: Optional[float] = None
-    utd_ratio: float = 4.0
+    utd_ratio: float = 10.0
     alpha_lr: float = 1.0e-4
-    alpha_init: float = 0.1 # lower target entropy
-    scratch_dir: str = "./meta_buffer_scratch"
-    buffer_save_path: Optional[str] = "./meta_buffer_initial"
-    num_updates_after_update: int = 5_000
+    alpha_init: float = 0.8 # lower target entropy
+    scratch_dir: str = "./meta_buffer_test"
+    buffer_save_path: Optional[str] = "./meta_buffer_test"
+    num_updates_after_update: int = 2_000
     # how often to update the base policy after changing the reward function
 
 
