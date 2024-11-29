@@ -7,7 +7,7 @@ stable_baselines3 `DDPG`` class, in particular the ``train`` method of the class
 
 from typing import Any, List, Dict, Optional, Tuple, Type, Union
 
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 import torch as th
 
