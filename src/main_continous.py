@@ -3,6 +3,7 @@ import os
 import pathlib
 import random
 import copy
+from timeit import default_timer as timer
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +30,9 @@ from pkg_ddpg_td3.utils.map import test_scene_1_dict, test_scene_2_dict
 ### Others
 from timer import PieceTimer, LoopTimer
 from typing import List, Tuple
+
+import warnings
+warnings.filterwarnings("ignore")
 
 MAX_RUN_STEP = 200
 DYN_OBS_SIZE = 0.8 + 0.8
@@ -69,9 +73,13 @@ def load_rl_model_env(generate_map, index: int) -> Tuple[PerDDPG, TD3, Trajector
     model_path_td3 = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'Model/td3', model_folder_name, 'best_model')
     
     env_eval:TrajectoryPlannerEnvironment = gym.make(variant['env_name'], generate_map=generate_map)
+    start_time = timer()
     env_checker.check_env(env_eval)
+    print(f"Environment check time: {timer()-start_time}s")
+    start_time = timer()
     td3_model = TD3.load(model_path_td3)
     ddpg_model = PerDDPG.load(model_path_ddpg)
+    print(f"Model loading time: {timer()-start_time}s")
     return ddpg_model, td3_model, env_eval
 
 def load_mpc(config_path: str):

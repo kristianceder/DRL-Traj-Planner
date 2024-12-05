@@ -257,7 +257,7 @@ def generate_map_corridor() -> MapDescription:
 
 
 ### Test maps ###
-"""
+r"""
 Scene 1: Crosswalk
     - a. Single rectangular static obstacle (small, medium, large)
     - b. Two rectangular static obstacles (small/large stagger, close/far aligned)
