@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### DRL import
-import gym
+import gymnasium as gym
 from torch import no_grad
 from stable_baselines3 import DDPG,TD3
 from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
@@ -107,6 +107,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     time_list = []
 
     ddpg_model, td3_model, env_eval = load_rl_model_env(generate_map(*scene_option), rl_index)
+    env_eval = env_eval.unwrapped
 
     CONFIG_FN = 'mpc_longiter.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
@@ -117,7 +118,7 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
     done = False
     with no_grad():
         while not done:
-            obsv = env_eval.reset()
+            obsv, *_  = env_eval.reset()
 
             init_state = np.array([*env_eval.agent.position, env_eval.agent.angle])
             goal_state = np.array([*env_eval.goal.position, 0])
@@ -175,7 +176,8 @@ def main_process(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_optio
                     timer_rl = PieceTimer()
                     action_index, _states = ddpg_model.predict(obsv, deterministic=True)
                     last_rl_time = timer_rl(4, ms=True)
-                    obsv, reward, done, info = env_eval.step(action_index)
+                    # obsv, reward, done, info = env_eval.step(action_index) # previous version
+                    obsv, reward, terminated, truncated, info = env_eval.step(action_index)
 
                 elif decision_mode == 2:
                     traj_gen.set_current_state(env_eval.agent.state)
