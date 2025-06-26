@@ -5,6 +5,19 @@
 The main branch of this repository is the single robot implementation of our paper. The multiple robot implementation is in a separate branch in the repository.
 
 The paper can be found here: [Paper](doc/iros24_official.pdf)
+
+Bibtex citation:
+```
+@INPROCEEDINGS{ddpgmpc_2024,
+  author={Ceder, Kristian and Zhang, Ze and Burman, Adam and Kuangaliyev, Ilya and Mattsson, Krister and Nyman, Gabriel and Petersén, Arvid and Wisell, Lukas and Åkesson, Knut},
+  booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 
+  title={Bird’s-Eye-View Trajectory Planning of Multiple Robots using Continuous Deep Reinforcement Learning and Model Predictive Control}, 
+  year={2024},
+  pages={8002-8008},
+  doi={10.1109/IROS58592.2024.10801434}
+}
+```
+
 ## Quick Start
 ### OpEn
 The NMPC formulation is solved using open source implementation of PANOC, namely [OpEn](https://alphaville.github.io/optimization-engine/). Follow the [installation instructions](https://alphaville.github.io/optimization-engine/docs/installation) before proceeding. 
