@@ -387,7 +387,7 @@ def generate_map_scene_2(sub_index: int, scene_option: int) -> MapDescription:
     - 2: Single dynamic obstacle
         - (1-right, 2-sharp, 3-u-shape)
     """
-    scene_2_robot = MobileRobot(np.array([3, 0.6, np.math.pi/2, 0, 0]))
+    scene_2_robot = MobileRobot(np.array([3, 0.6, np.pi/2, 0, 0]))
     scene_2_boundary = Boundary([(0.0, 0.0), (16.0, 0.0), (16.0, 18.0), (0.0, 18.0)])
     scene_2_obstacles_list = [[(0.0, 0.0), (0.0, 16.0), (1.0, 16.0), (1.0, 0.0)],]
     scene_2_obstacles = [Obstacle.create_mpc_static(obstacle) for obstacle in scene_2_obstacles_list]

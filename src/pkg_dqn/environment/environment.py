@@ -1,8 +1,8 @@
 from time import time
 from packaging import version
 
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
 import numpy as np
 from numpy.linalg import norm
@@ -141,9 +141,13 @@ class TrajectoryPlannerEnvironment(gym.Env):
         environment.prepare()
 
         # Find shortest path with A*
-        path, _ = environment.find_shortest_path(self.agent.position, self.goal.position) # path: list[tuple[float, float]]
-        self.path = LineString(path)
-        return len(path) > 0
+        try:
+            path, _ = environment.find_shortest_path(self.agent.position, self.goal.position) # path: list[tuple[float, float]]
+            self.path = LineString(path)
+            return len(path) > 0
+        except Exception as e:
+            print(f"Error finding shortest path: {e}")
+            return False
 
     def get_info(self) -> dict:
         return {"success": self.reached_goal}

@@ -1,4 +1,4 @@
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 from shapely.geometry import LineString

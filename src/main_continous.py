@@ -9,11 +9,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### DRL import
-import gymnasium as gym
+import torch
 from torch import no_grad
+import gymnasium as gym
 from stable_baselines3 import DDPG,TD3
-from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 from stable_baselines3.common import env_checker
+from pkg_ddpg_td3.utils.per_ddpg import PerDDPG
 
 from pkg_ddpg_td3.environment import MobileRobot
 from pkg_ddpg_td3.environment.environment import TrajectoryPlannerEnvironment
@@ -53,13 +54,13 @@ def load_rl_model_env(generate_map, index: int) -> Tuple[PerDDPG, TD3, Trajector
             'env_name': 'TrajectoryPlannerEnvironmentImgsReward1-v0',
             'net_arch': [64, 64],
             'per': False,
-            'device': 'auto',
+            'device': 'cuda' if torch.cuda.is_available() else 'cpu',
         },
         {
             'env_name': 'TrajectoryPlannerEnvironmentRaysReward1-v0',
             'net_arch': [16, 16],
             'per': False,
-            'device': 'cpu',
+            'device': 'cuda' if torch.cuda.is_available() else 'cpu',
         },
     ][index] 
 
@@ -69,17 +70,16 @@ def load_rl_model_env(generate_map, index: int) -> Tuple[PerDDPG, TD3, Trajector
         model_folder_name = 'ray'
     else:
         raise ValueError('Invalid index')
-    model_path_ddpg = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'Model/ddpg', model_folder_name, 'best_model')
-    model_path_td3 = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'Model/td3', model_folder_name, 'best_model')
+    model_path_ddpg = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'Model/ddpg', model_folder_name, 'best_model.pt')
+    model_path_td3 = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'Model/td3', model_folder_name, 'best_model.pt')
     
     env_eval:TrajectoryPlannerEnvironment = gym.make(variant['env_name'], generate_map=generate_map)
     start_time = timer()
     env_checker.check_env(env_eval)
-    print(f"Environment check time: {timer()-start_time}s")
-    start_time = timer()
-    td3_model = TD3.load(model_path_td3)
-    ddpg_model = PerDDPG.load(model_path_ddpg)
-    print(f"Model loading time: {timer()-start_time}s")
+    td3_model = TD3("MultiInputPolicy", env_eval, policy_kwargs={'net_arch': variant['net_arch']}, device=variant['device'])
+    td3_model.policy.load_state_dict(torch.load(model_path_td3, map_location=variant['device'], weights_only=False))
+    ddpg_model = PerDDPG("MultiInputPolicy", env_eval, policy_kwargs={'net_arch': variant['net_arch']}, device=variant['device'])
+    ddpg_model.policy.load_state_dict(torch.load(model_path_ddpg, map_location=variant['device'], weights_only=False))
     return ddpg_model, td3_model, env_eval
 
 def load_mpc(config_path: str):
@@ -118,7 +118,7 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
     ddpg_model, td3_model, env_eval = load_rl_model_env(generate_map(*scene_option), rl_index)
     env_eval = env_eval.unwrapped
 
-    CONFIG_FN = 'mpc_longiter.yaml'
+    CONFIG_FN = 'mpc_default.yaml'
     cfg_fpath = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CONFIG_FN)
     traj_gen = load_mpc(cfg_fpath)
     geo_map = get_geometric_map(env_eval.get_map_description(), inflate_margin=0.8)
@@ -216,12 +216,18 @@ def main(rl_index:int=1, decision_mode:int=1, to_plot=False, scene_option:Tuple[
                     rl_ref = []
                     robot_sim:MobileRobot = copy.deepcopy(env_eval.agent)
                     robot_sim:MobileRobot
+                    env_sim:TrajectoryPlannerEnvironment = copy.deepcopy(env_eval)
                     for j in range(20):
-                        if j == 0:
-                            robot_sim.step(action_index, traj_gen.config.ts)
-                        else:
-                            robot_sim.step_with_ref_speed(traj_gen.config.ts, 1.0)
+                        # if j == 0:
+                        robot_sim.step(action_index, traj_gen.config.ts)
+                        # else:
+                        #     robot_sim.step_with_ref_speed(traj_gen.config.ts, 1.0)
+                        env_sim.agent = robot_sim
                         rl_ref.append(list(robot_sim.position))
+                        env_sim.step_obstacles()
+                        env_sim.update_status(reset=False)
+                        obsv_sim = env_sim.get_observation()
+                        action_index, _states = ddpg_model.predict(obsv_sim, deterministic=True)
                     last_rl_time = timer_rl(4, ms=True)
                     # last_rl_ref = rl_ref
                     
@@ -333,7 +339,7 @@ if __name__ == '__main__':
 
     decision_mode: 0 = MPC, 1 = DDPG, 2 = TD3, 3 = Hybrid DDPG, 4 = Hybrid TD3  
     """
-    scene_option = (1, 1, 1)
+    scene_option = (1, 2, 1)
 
     # time_list_mpc     = main(rl_index=1,    decision_mode=0,  to_plot=False, scene_option=scene_option, save_num=1) # Eval MPC using main.py
     # time_list_img     = main(rl_index=0,    decision_mode=1,  to_plot=False, scene_option=scene_option, save_num=3)

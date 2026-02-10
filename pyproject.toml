@@ -1,0 +1,26 @@
+[project]
+name = "drl-traj-planner"
+version = "1.5.0"
+description = "Since 1.5.0, the project is only supported via UV. All packages are updated to the stable versions (2026)."
+maintainers = [
+    { name = "Zhze", email = "zhze.zhang@gmail.com" },
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "extremitypathfinder>=2.1.0",
+    "matplotlib>=3.10.8",
+    "networkx>=3.6.1",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.92",
+    "shapely>=2.1.2",
+    "scipy>=1.17.0",
+    "pyyaml>=6.0.3",
+    # For MPC Panoc solver
+    "casadi>=3.7.2",
+    "opengen>=0.9.4",
+    "setuptools<69",
+    # For DRL training (including cuda and torch)
+    "stable-baselines3>=2.7.1",
+    "gymnasium>=1.2.3",
+]

@@ -1,4 +1,5 @@
 from time import time
+import os
 from packaging import version
 
 
@@ -81,6 +82,16 @@ class TrajectoryPlannerEnvironment(gym.Env):
         # acceleration also has three possibilities left-middle-right
         self.action_space = spaces.Box(low=np.array([-1, -1], dtype=np.float32), high=np.array([1, 1], dtype=np.float32), dtype=np.float32)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["fig"] = None
+        state["axes"] = None
+        state["rendered"] = True
+        return state
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def update_termination(self) -> bool:
         return bool(self.collided or self.reached_goal)
 
@@ -101,8 +112,6 @@ class TrajectoryPlannerEnvironment(gym.Env):
             self.speeds = [self.agent.speed]
             self.angular_velocities = [self.agent.angular_velocity]
             
-            
-
         self.collided_with_obstacle |= any(o.collides(self.agent) for o in self.obstacles)
         self.collided_with_boundary |= self.boundary.collides(self.agent)
         self.collided |= self.collided_with_obstacle or self.collided_with_boundary
@@ -137,12 +146,9 @@ class TrajectoryPlannerEnvironment(gym.Env):
         environment.prepare()
 
         # Find shortest path with A*
-        try:
-            path, _ = environment.find_shortest_path(self.agent.position, self.goal.position) # path: list[tuple[float, float]]
-            self.path = LineString(path)
-            return len(path) > 0
-        except Exception as e:
-            return False
+        path, _ = environment.find_shortest_path(list(self.agent.position), list(self.goal.position)) # path: list[tuple[float, float]]
+        self.path = LineString(path)
+        return len(path) > 0
 
     def get_info(self) -> dict:
         return {"success": self.reached_goal}
@@ -284,6 +290,7 @@ class TrajectoryPlannerEnvironment(gym.Env):
         
         if save:
             self.render_cnt += 1
+            os.makedirs('Demo', exist_ok=True)
             plt.savefig(f'Demo/{save_num}-{self.render_cnt}.png', bbox_inches='tight')
         else:
             self.fig.tight_layout()

@@ -1,6 +1,6 @@
 import numpy.typing as npt
 from matplotlib.axes import Axes
-from gym import spaces
+from gymnasium import spaces
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:

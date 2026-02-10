@@ -16,8 +16,8 @@ from visualizer.mpc_plot import MpcPlotAfter
 
 ### Customize
 # CONFIG_FN = 'mpc_test.yaml'
-# CONFIG_FN = 'mpc_default.yaml'
-CONFIG_FN = 'mpc_longiter.yaml'
+CONFIG_FN = 'mpc_default.yaml'
+# CONFIG_FN = 'mpc_longiter.yaml'
 
 INIT_BUILD = True
 PLOT_INLOOP = True
@@ -31,9 +31,10 @@ yaml_fp = os.path.join(pathlib.Path(__file__).resolve().parents[1], 'config', CO
 config = Configurator(yaml_fp)
 
 ### Build
-if CONFIG_FN != 'mpc_default.yaml':
-    if INIT_BUILD:
-        MpcModule(config).build(motion_model.unicycle_model)
+if INIT_BUILD:
+    if CONFIG_FN != 'mpc_default.yaml':
+        input("This will overwrite the default config file. Press any key to continue OR Ctrl+C to stop.")
+    MpcModule(config).build(motion_model.unicycle_model)
 
 ### Load simulator
 sim = Simulator(config, case_index, inflate_margin=(config.vehicle_width+config.vehicle_margin))

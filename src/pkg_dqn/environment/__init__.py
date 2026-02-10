@@ -9,8 +9,7 @@ MapGenerator = Callable[[], MapDescription]
 
 __all__ = ['MobileRobot', 'Boundary', 'Obstacle', 'Animation', 'Goal', 'MapDescription']
 
-from gym.envs.registration import register
-# from gym import register
+from gymnasium import register
 
 max_episode_steps = 1000
 register(
